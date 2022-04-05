@@ -32,6 +32,7 @@ import numpy as np
 from scipy import special
 from scipy import interpolate
 from scipy import optimize
+from pyoptsparse import SLSQP,IPOPT,Optimization
 import matplotlib.pyplot as plt
 
 
@@ -753,6 +754,137 @@ class Problem:
             if not(opt.status):
                 break
             self.iterator += 1
+    """ ==============================
+    """
+
+    def solve_pos(self, obj, display_func=_dummy_func, **options):
+        """ solve NLP using pyoptsparse
+
+        Args:
+            obj (object instance) : instance
+            display_func (function) : function to display intermediate values
+            ftol (float, optional) : Precision goal for the value of f in the
+                stopping criterion, (default: 1e-6)
+            maxiter (int, optional) : Maximum number of iterations., (default : 25)
+
+        Examples:
+            "prob" is Problem class's instance.
+
+            >>> prob.solve(obj, display_func, ftol=1e-12)
+
+        """
+        assert len(self.dynamics) != 0, "It must be set dynamics"
+        assert self.cost is not None, "It must be set cost function"
+        assert self.equality is not None, "It must be set equality function"
+        assert self.inequality is not None, "It must be set inequality function"
+
+        def equality_add(equality_func, obj):
+            """ add pseudospectral method conditions to equality function.
+            collocation point condition and knotting condition.
+            """
+            result = self.equality(self, obj)
+
+            # collation point condition
+            for i in range(self.number_of_section):
+                D = self.D
+                derivative = np.zeros(0)
+                for j in range(self.number_of_states[i]):
+                    state_temp = self.states(j, i) / self.unit_states[i][j]
+                    derivative = np.hstack((derivative, D[i].dot(state_temp)))
+                tix = self.time_start(i) / self.unit_time
+                tfx = self.time_final(i) / self.unit_time
+                dx = self.dynamics[i](self, obj, i)
+                result = np.hstack((result, derivative - (tfx - tix) / 2.0 * dx))
+
+            # knotting condition
+            for knot in range(self.number_of_section - 1):
+                if (self.number_of_states[knot] != self.number_of_states[knot + 1]):
+                    continue  # if states are not continuous on knot, knotting condition skip
+                for state in range(self.number_of_states[knot]):
+                    param_prev = self.states(state, knot) / self.unit_states[knot][state]
+                    param_post = self.states(state, knot + 1) / self.unit_states[knot][state]
+                    if (self.knot_states_smooth[knot]):
+                        result = np.hstack((result, param_prev[-1] - param_post[0]))
+
+            return result
+
+        def cost_add(cost_func, obj):
+            """Combining nonintegrated function and integrated function.
+            """
+            not_integrated = self.cost(self, obj)
+            if self.running_cost is None:
+                return not_integrated
+            integrand = self.running_cost(self, obj)
+            weight = np.concatenate([i for i in self.w])
+            integrated = sum(integrand * weight)
+            return not_integrated + integrated
+
+        def wrap_for_solver(func, arg0, arg1):
+            def for_solver(p, arg0, arg1):
+                self.p = p
+                return func(arg0, arg1)
+            return for_solver
+
+        # def wrap_for_solver(func, *args):
+        #     def for_solver(p, *args):
+        #         self.p = p
+        #         return func(*args)
+        #     return for_solver
+
+        cons = ({'type': 'eq',
+                 'fun': wrap_for_solver(equality_add, self.equality, obj),
+                'args': (self, obj,)},
+                {'type': 'ineq',
+                 'fun': wrap_for_solver(self.inequality, self, obj),
+                 'args': (self, obj,)})
+
+        if (self.cost_derivative is None):
+            jac = None
+        else:
+            jac = wrap_for_solver(self.cost_derivative, self, obj)
+
+        ftol = options.setdefault("ftol", 1e-6)
+        maxiter = options.setdefault("maxiter", 500)
+
+        def objfunc(xdict):
+            x = xdict["xvars"]
+            self.p = x
+            funcs = {}
+            funcs["obj"] = cost_add(self.cost, obj)
+            funcs["eqcon"] = equality_add(self.equality, obj)
+            funcs["ineqcon"] = self.inequality(self, obj)
+            fail = False
+
+            return funcs, fail
+
+        optProb = Optimization("OpenGoddard Optimization", objfunc)
+
+        var_lower = None
+        var_upper = None
+        if self.bounds is not None:
+            var_lower = [b[0] for b in self.bounds]
+            var_upper = [b[1] for b in self.bounds]
+        optProb.addVarGroup("xvars", len(self.p), "c", value=self.p, lower=var_lower, upper=var_upper)
+        optProb.addConGroup("eqcon", len(equality_add(self.equality, obj)), lower=0.0, upper=0.0)
+        optProb.addConGroup("ineqcon", len(self.inequality(self, obj)), lower=0.0, upper=None)
+        optProb.addObj("obj")
+
+        # opt = pos.SLSQP(options={"MAXIT": maxiter, "ACC": ftol})
+        #opt = IPOPT(options={"linear_solver":"pardisomkl",
+        #                    "print_level": 5,
+        #                    "tol": ftol,
+        #                    "max_iter": maxiter
+        #                    })
+        opt = SLSQP({"IPRINT": 0, "MAXIT": maxiter, "ACC":ftol})
+        sol = opt(optProb, sens="FD", sensMode="pgc")
+        self.p = sol.xStar["xvars"]
+        print(sol.optInform["text"])
+        print("fun: {0}".format(sol.fStar))
+        print("time: {0}".format(sol.optTime))
+        print(sol.optInform["text"])
+        display_func()
+        print("")
+            
     """ ==============================
     """
 
