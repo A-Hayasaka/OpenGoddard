@@ -59,7 +59,6 @@ def dynamics(prob, obj, section):
     dx[2] = Tr / m - Dr / m - g + Vt**2 / R
     dx[3] = Tt / m - Dt / m - (Vr * Vt) / R
     dx[4] = - np.sqrt(Tr**2 + Tt**2) / g0 / Isp
-
     return dx()
 
 
