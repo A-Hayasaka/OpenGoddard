@@ -295,10 +295,10 @@ class Problem:
                 1-D array of all section state
 
         """
-        temp = np.zeros(0)
+        temp = []
         for i in range(self.number_of_section):
-            temp = np.concatenate([temp, self.states(state, i)])
-        return temp
+            temp.append(self.states(state, i))
+        return np.concatenate(temp, axis=None)
 
     def controls(self, control, section):
         """getter specify section controls array
@@ -326,10 +326,10 @@ class Problem:
                 1-D array of all section control
 
         """
-        temp = np.zeros(0)
+        temp = []
         for i in range(self.number_of_section):
-            temp = np.concatenate([temp, self.controls(control, i)])
-        return temp
+            temp.append(self.controls(control, i))
+        return np.concatenate(temp,axis=None)
 
     def time_start(self, section):
         """ get time at section "start"
@@ -672,19 +672,19 @@ class Problem:
             """ add pseudospectral method conditions to equality function.
             collocation point condition and knotting condition.
             """
-            result = self.equality(self, obj)
+            result = [self.equality(self, obj)]
 
             # collation point condition
             for i in range(self.number_of_section):
                 D = self.D
-                derivative = np.zeros(0)
+                derivative = []
                 for j in range(self.number_of_states[i]):
                     state_temp = self.states(j, i) / self.unit_states[i][j]
-                    derivative = np.concatenate((derivative, D[i].dot(state_temp)), axis=None)
+                    derivative.append(D[i].dot(state_temp))
                 tix = self.time_start(i) / self.unit_time
                 tfx = self.time_final(i) / self.unit_time
                 dx = self.dynamics[i](self, obj, i)
-                result = np.concatenate((result, derivative - (tfx - tix) / 2.0 * dx), axis=None)
+                result.append(np.array(derivative).ravel() - (tfx - tix) / 2.0 * dx)
 
             # knotting condition
             for knot in range(self.number_of_section - 1):
@@ -694,9 +694,9 @@ class Problem:
                     param_prev = self.states(state, knot) / self.unit_states[knot][state]
                     param_post = self.states(state, knot + 1) / self.unit_states[knot][state]
                     if (self.knot_states_smooth[knot]):
-                        result = np.concatenate((result, param_prev[-1] - param_post[0]), axis=None)
+                        result.append(param_prev[-1] - param_post[0])
 
-            return result
+            return np.concatenate(result, axis=None)
 
         def cost_add(cost_func, obj):
             """Combining nonintegrated function and integrated function.
@@ -782,19 +782,19 @@ class Problem:
             """ add pseudospectral method conditions to equality function.
             collocation point condition and knotting condition.
             """
-            result = self.equality(self, obj)
+            result = [self.equality(self, obj)]
 
             # collation point condition
             for i in range(self.number_of_section):
                 D = self.D
-                derivative = np.zeros(0)
+                derivative = []
                 for j in range(self.number_of_states[i]):
                     state_temp = self.states(j, i) / self.unit_states[i][j]
-                    derivative = np.concatenate((derivative, D[i].dot(state_temp)), axis=None)
+                    derivative.append(D[i].dot(state_temp))
                 tix = self.time_start(i) / self.unit_time
                 tfx = self.time_final(i) / self.unit_time
                 dx = self.dynamics[i](self, obj, i)
-                result = np.concatenate((result, derivative - (tfx - tix) / 2.0 * dx), axis=None)
+                result.append(np.array(derivative).ravel() - (tfx - tix) / 2.0 * dx)
 
             # knotting condition
             for knot in range(self.number_of_section - 1):
@@ -804,9 +804,9 @@ class Problem:
                     param_prev = self.states(state, knot) / self.unit_states[knot][state]
                     param_post = self.states(state, knot + 1) / self.unit_states[knot][state]
                     if (self.knot_states_smooth[knot]):
-                        result = np.concatenate((result, param_prev[-1] - param_post[0]), axis=None)
+                        result.append(param_prev[-1] - param_post[0])
 
-            return result
+            return np.concatenate(result, axis=None)
 
         def cost_add(cost_func, obj):
             """Combining nonintegrated function and integrated function.
