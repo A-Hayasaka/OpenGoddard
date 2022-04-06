@@ -845,6 +845,7 @@ class Problem:
 
         ftol = options.setdefault("ftol", 1e-6)
         maxiter = options.setdefault("maxiter", 500)
+        solver = options.setdefault("solver", "IPOPT")
 
         def objfunc(xdict):
             x = xdict["xvars"]
@@ -870,13 +871,15 @@ class Problem:
         optProb.addObj("obj")
 
         # opt = pos.SLSQP(options={"MAXIT": maxiter, "ACC": ftol})
-        opt_i = IPOPT(options={"linear_solver":"pardisomkl",
-                            "print_level": 5,
-                            "tol": ftol,
-                            "max_iter": maxiter
-                            })
-        opt_s = SLSQP({"IPRINT": 0, "MAXIT": maxiter, "ACC":ftol})
-        sol = opt_i(optProb, sens="FD", sensMode="pgc")
+        if solver == "SLSQP":
+            opt = SLSQP(options={"IPRINT": 1, "MAXIT": maxiter, "ACC":ftol})
+        else:
+            opt = IPOPT(options={"linear_solver":"pardisomkl",
+                                "print_level": 5,
+                                "tol": ftol,
+                                "max_iter": maxiter
+                                })
+        sol = opt(optProb, sens="FD", sensMode="pgc")
         self.p = sol.xStar["xvars"]
         print(sol.optInform["text"])
         print("fun: {0}".format(sol.fStar))
