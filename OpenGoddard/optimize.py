@@ -870,13 +870,13 @@ class Problem:
         optProb.addObj("obj")
 
         # opt = pos.SLSQP(options={"MAXIT": maxiter, "ACC": ftol})
-        #opt = IPOPT(options={"linear_solver":"pardisomkl",
-        #                    "print_level": 5,
-        #                    "tol": ftol,
-        #                    "max_iter": maxiter
-        #                    })
-        opt = SLSQP({"IPRINT": 0, "MAXIT": maxiter, "ACC":ftol})
-        sol = opt(optProb, sens="FD", sensMode="pgc")
+        opt_i = IPOPT(options={"linear_solver":"pardisomkl",
+                            "print_level": 5,
+                            "tol": ftol,
+                            "max_iter": maxiter
+                            })
+        opt_s = SLSQP({"IPRINT": 0, "MAXIT": maxiter, "ACC":ftol})
+        sol = opt_i(optProb, sens="FD", sensMode="pgc")
         self.p = sol.xStar["xvars"]
         print(sol.optInform["text"])
         print("fun: {0}".format(sol.fStar))
