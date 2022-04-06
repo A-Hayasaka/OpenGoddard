@@ -121,7 +121,7 @@ class Problem:
     def _nodes_LGR(self, n):
         '''Return Gauss-Radau nodes.'''
         roots, weight = special.j_roots(n-1, 0, 1)
-        nodes = np.hstack((-1, roots))
+        nodes = np.concatenate((-1, roots), axis=None)
         return nodes
 
     def _weight_LGR(self, n):
@@ -178,13 +178,13 @@ class Problem:
         for x in x0:
             optResult = optimize.root(self._LegendreDerivative, x, args=(n-1,))
             roots = np.append(roots, optResult.x)
-        nodes = np.hstack((-1, roots, 1))
+        nodes = np.concatenate((-1, roots, 1), axis=None)
         return nodes
 
     def _nodes_LGL(self, n):
         """ Legendre-Gauss-Lobatto(LGL) points"""
         roots, weight = special.j_roots(n-2, 1, 1)
-        nodes = np.hstack((-1, roots, 1))
+        nodes = np.concatenate((-1, roots, 1), axis=None)
         return nodes
 
     def _weight_LGL(self, n):
@@ -680,11 +680,11 @@ class Problem:
                 derivative = np.zeros(0)
                 for j in range(self.number_of_states[i]):
                     state_temp = self.states(j, i) / self.unit_states[i][j]
-                    derivative = np.hstack((derivative, D[i].dot(state_temp)))
+                    derivative = np.concatenate((derivative, D[i].dot(state_temp)), axis=None)
                 tix = self.time_start(i) / self.unit_time
                 tfx = self.time_final(i) / self.unit_time
                 dx = self.dynamics[i](self, obj, i)
-                result = np.hstack((result, derivative - (tfx - tix) / 2.0 * dx))
+                result = np.concatenate((result, derivative - (tfx - tix) / 2.0 * dx), axis=None)
 
             # knotting condition
             for knot in range(self.number_of_section - 1):
@@ -694,7 +694,7 @@ class Problem:
                     param_prev = self.states(state, knot) / self.unit_states[knot][state]
                     param_post = self.states(state, knot + 1) / self.unit_states[knot][state]
                     if (self.knot_states_smooth[knot]):
-                        result = np.hstack((result, param_prev[-1] - param_post[0]))
+                        result = np.concatenate((result, param_prev[-1] - param_post[0]), axis=None)
 
             return result
 
@@ -790,11 +790,11 @@ class Problem:
                 derivative = np.zeros(0)
                 for j in range(self.number_of_states[i]):
                     state_temp = self.states(j, i) / self.unit_states[i][j]
-                    derivative = np.hstack((derivative, D[i].dot(state_temp)))
+                    derivative = np.concatenate((derivative, D[i].dot(state_temp)), axis=None)
                 tix = self.time_start(i) / self.unit_time
                 tfx = self.time_final(i) / self.unit_time
                 dx = self.dynamics[i](self, obj, i)
-                result = np.hstack((result, derivative - (tfx - tix) / 2.0 * dx))
+                result = np.concatenate((result, derivative - (tfx - tix) / 2.0 * dx), axis=None)
 
             # knotting condition
             for knot in range(self.number_of_section - 1):
@@ -804,7 +804,7 @@ class Problem:
                     param_prev = self.states(state, knot) / self.unit_states[knot][state]
                     param_post = self.states(state, knot + 1) / self.unit_states[knot][state]
                     if (self.knot_states_smooth[knot]):
-                        result = np.hstack((result, param_prev[-1] - param_post[0]))
+                        result = np.concatenate((result, param_prev[-1] - param_post[0]), axis=None)
 
             return result
 
@@ -982,7 +982,7 @@ class Problem:
 
         """
         result = np.zeros(0)
-        result = np.hstack((result, self.time_update()))
+        result = np.concatenate((result, self.time_update()), axis=None)
 
         header = "time, "
         for i in range(self.number_of_states[0]):
@@ -1147,7 +1147,7 @@ class Condition(object):
         Args:
             arg (array_like) : condition
         """
-        self._condition = np.hstack((self._condition, arg / unit))
+        self._condition = np.concatenate((self._condition, arg / unit), axis=None)
 
     def equal(self, arg1, arg2, unit=1.0):
         """add equation constraint condition in Problem equality function
@@ -1255,7 +1255,7 @@ class Dynamics(object):
         dx = np.zeros(0)
         for i in range(self.number_of_state):
             temp = self.__dict__[i] * (self.unit_time / self.unit_states[self.section][i])
-            dx = np.hstack((dx, temp))
+            dx = np.concatenate((dx, temp), axis=None)
         return dx
 
 
@@ -1338,7 +1338,7 @@ if __name__ == '__main__':
     M_init = Guess.cubic(prob.time_all_section, 1.0, -0.6, 0.6, 0.0)
     T_init1 = Guess.linear(prob.time[0], 3.5, 3.5)
     T_init2 = Guess.linear(prob.time[1], 0.0, 0.0)
-    T_init = np.hstack((T_init1, T_init2))
+    T_init = np.concatenate((T_init1, T_init2), axis=None)
     Guess.plot(prob.time_all_section, T_init, "Thrust Guess", "time", "Thrust")
 
     plt.show()
@@ -1373,7 +1373,7 @@ if __name__ == '__main__':
         dx0 = v
         dx1 = (T - drag) / m - g
         dx2 = - T / c
-        dx = np.hstack((dx0, dx1, dx2))
+        dx = np.concatenate((dx0, dx1, dx2), axis=None)
         return dx
 
     def equality(prob, obj):
@@ -1724,10 +1724,10 @@ if __name__ == '__main__':
     x_init = Guess.linear(prob.time_all_section, 0.0, obj.l)
     y_init0 = Guess.linear(prob.time_all_section[:half_nodes], 0, obj.h)
     y_init1 = Guess.linear(prob.time_all_section[half_nodes:], obj.h, 0)
-    y_init = np.hstack((y_init0, y_init1))
+    y_init = np.concatenate((y_init0, y_init1), axis=None)
     v_init0 = Guess.linear(prob.time_all_section[:half_nodes], 0, obj.h)
     v_init1 = Guess.linear(prob.time_all_section[half_nodes:], obj.h, 0)
-    v_init = np.hstack((v_init0, v_init1))
+    v_init = np.concatenate((v_init0, v_init1), axis=None)
 
     prob.set_states_all_section(0, x_init)
     prob.set_states_all_section(1, y_init)
