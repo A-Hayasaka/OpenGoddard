@@ -80,6 +80,23 @@ class Problem:
         Legendre, Derivative = special.lpn(n, x)
         return Derivative[-1]
 
+    def _LagrangePolynominalDerivative(self, x_nodes, n, t):
+    
+        M = len(x_nodes)
+        den = 1.0
+        for i in range(M):
+            if i!=n:
+                den = den * (x_nodes[n] - x_nodes[i])
+        num = 0.0
+        for j in range(M):
+            num_j = 1.0
+            if j!=n:
+                for i in range(M):
+                    if i!=n and i!=j:
+                        num_j = num_j * (t - x_nodes[i])
+                num = num + num_j
+        return num / den
+
     def _nodes_LG(self, n):
         '''Return Gauss-Legendre nodes.'''
         nodes, weight = special.p_roots(n)
@@ -92,15 +109,11 @@ class Problem:
 
     def _differentiation_matrix_LG(self, n):
         tau = self._nodes_LG(n)
-        D = np.zeros((n, n))
+        tau = np.concatenate((-1.0, tau), axis=None)
+        D = np.zeros((n, n+1))
         for i in range(n):
-            for j in range(n):
-                if i != j:
-                    D[i, j] = self._LegendreDerivative(tau[i], n) \
-                              / self._LegendreDerivative(tau[j], n) \
-                              / (tau[i] - tau[j])
-                else:
-                    D[i, j] = tau[i] / (1 - tau[i]**2)
+            for j in range(n+1):
+                D[i, j] = self._LagrangePolynominalDerivative(tau, j, tau[i+1])
         return D
 
     def method_LG(self, n):
@@ -115,52 +128,57 @@ class Problem:
 
         """
         nodes, weight = special.p_roots(n)
-        D = _differentiation_matrix_LG(n)
+        D = self._differentiation_matrix_LG(n)
         return nodes, weight, D
 
-    def _nodes_LGR(self, n):
+    def _nodes_LGR(self, n, reverse=True):
         '''Return Gauss-Radau nodes.'''
         roots, weight = special.j_roots(n-1, 0, 1)
         nodes = np.concatenate((-1, roots), axis=None)
+        if reverse:
+            nodes = np.sort(-nodes)
         return nodes
 
-    def _weight_LGR(self, n):
+    def _weight_LGR(self, n, reverse=True):
         '''Return Gauss-Legendre weight.'''
-        nodes = self._nodes_LGR(n)
+        nodes = self._nodes_LGR(n, reverse)
         w = np.zeros(0)
         for i in range(n):
             w = np.append(w, (1-nodes[i])/(n*n*self._LegendreFunction(nodes[i], n-1)**2))
         return w
 
-    def _differentiation_matrix_LGR(self, n):
-        tau = self._nodes_LGR(n)
-        D = np.zeros((n, n))
+    def _differentiation_matrix_LGR(self, n, reverse=True):
+        tau = self._nodes_LGR(n, reverse)
+        if reverse:
+            tau = np.concatenate((-1.0, tau), axis=None)
+        else:
+            tau = np.concatenate((tau, 1.0), axis=None)
+        D = np.zeros((n, n+1))
         for i in range(n):
-            for j in range(n):
-                if i != j:
-                    D[i, j] = self._LegendreFunction(tau[i], n-1) \
-                              / self._LegendreFunction(tau[j], n-1) \
-                              * (1 - tau[j]) / (1 - tau[i]) / (tau[i] - tau[j])
-                elif i == j and i == 0:
-                    D[i, j] = -(n-1)*(n+1)*0.25
+            for j in range(n+1):
+                if reverse:
+                    D[i, j] = self._LagrangePolynominalDerivative(tau, j, tau[i+1])
                 else:
-                    D[i, j] = 1 / (2 * (1 - tau[i]))
+                    D[i, j] = self._LagrangePolynominalDerivative(tau, j, tau[i])
         return D
 
-    def method_LGR(self, n):
+    def method_LGR(self, n, reverse=True):
         """ Legendre-Gauss-Radau Pseudospectral method
-        Gauss-Radau nodes are roots of :math:`P_n(x) + P_{n-1}(x)`.
+        There are two collocation method.
+        normal Gauss-Radau nodes are roots of :math:`P_n(x) + P_{n-1}(x)`, which include x=-1.
+        reversed Gauss-Radau nodes are roots of :math:`P_n(-x) + P_{n-1}(-x)`, which include x=+1.
 
         Args:
             n (int) : number of nodes
+            reverse (bool) : collocation method (uses reversed nodes when True)
 
         Returns:
             ndarray, ndarray, ndarray : nodes, weight, differentiation_matrix
 
         """
-        nodes = _nodes_LGR(n)
-        weight = _weight_LGR(n)
-        D = _differentiation_matrix_LGR(n)
+        nodes = self._nodes_LGR(n, reverse)
+        weight = self._weight_LGR(n, reverse)
+        D = self._differentiation_matrix_LGR(n, reverse)
         return nodes, weight, D
 
     def _nodes_LGL_old(self, n):
@@ -230,9 +248,9 @@ class Problem:
             http://dx.doi.org/10.2514/6.2008-7309
 
         """
-        nodes = _nodes_LGL(n)
-        weight = _weight_LGL(n)
-        D = _differentiation_matrix_LGL(n)
+        nodes = self._nodes_LGL(n)
+        weight = self._weight_LGL(n)
+        D = self._differentiation_matrix_LGL(n)
         return nodes, weight, D
 
     def _make_param_division(self, nodes, number_of_states, number_of_controls):
