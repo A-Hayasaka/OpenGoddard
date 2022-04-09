@@ -314,8 +314,8 @@ class Problem:
 
         """
         temp = []
-        for i in range(self.number_of_section):
-            temp.append(self.states(state, i))
+        for section in range(self.number_of_section):
+            temp.append(self.states(state, section))
         return np.concatenate(temp, axis=None)
 
     def controls(self, control, section):
@@ -345,8 +345,8 @@ class Problem:
 
         """
         temp = []
-        for i in range(self.number_of_section):
-            temp.append(self.controls(control, i))
+        for section in range(self.number_of_section):
+            temp.append(self.controls(control, section))
         return np.concatenate(temp,axis=None)
 
     def time_start(self, section):
@@ -415,10 +415,10 @@ class Problem:
 
         """
         div = 0
-        for i in range(self.number_of_section):
-            value = value_all_section[div:div + self.nodes[i]]
-            div = div + self.nodes[i]
-            self.set_states(state, i, value)
+        for section in range(self.number_of_section):
+            value = value_all_section[div:div + self.nodes[section]]
+            div = div + self.nodes[section]
+            self.set_states(state, section, value)
 
     def set_controls(self, control, section, value):
         """set value to control at all section
@@ -442,10 +442,10 @@ class Problem:
 
         """
         div = 0
-        for i in range(self.number_of_section):
-            value = value_all_section[div:div + self.nodes[i]]
-            div = div + self.nodes[i]
-            self.set_controls(control, i, value)
+        for section in range(self.number_of_section):
+            value = value_all_section[div:div + self.nodes[section]]
+            div = div + self.nodes[section]
+            self.set_controls(control, section, value)
 
     def set_time_final(self, section, value):
         """ set value to final time at specific section
@@ -544,10 +544,10 @@ class Problem:
         """
         self.time = []
         t = [0] + self.time_final_all_section()
-        for i in range(self.number_of_section):
-            self.time.append((t[i+1] - t[i]) / 2.0 * self.tau[i]
-                             + (t[i+1] + t[i]) / 2.0)
-        return np.concatenate([i for i in self.time])
+        for section in range(self.number_of_section):
+            self.time.append((t[section+1] - t[section]) / 2.0 * self.tau[section]
+                             + (t[section+1] + t[section]) / 2.0)
+        return np.concatenate(self.time)
 
     def time_knots(self):
         """ get time at knot point
@@ -614,8 +614,8 @@ class Problem:
             value (float) : value
 
         """
-        for i in range(self.number_of_section):
-            self.set_unit_states(state, i, value)
+        for section in range(self.number_of_section):
+            self.set_unit_states(state, section, value)
 
     def set_unit_controls(self, control, section, value):
         """ set a canonical unit value to the control at a specific section
@@ -636,8 +636,8 @@ class Problem:
             value (float) : value
 
         """
-        for i in range(self.number_of_section):
-            self.set_unit_controls(control, i, value)
+        for section in range(self.number_of_section):
+            self.set_unit_controls(control, section, value)
 
     def set_unit_time(self, value):
         """ set a canonical unit value to the time
@@ -653,7 +653,7 @@ class Problem:
             self.time.append((time_init[index+1] - time_init[index]) / 2.0 * self.tau[index]
                              + (time_init[index+1] + time_init[index]) / 2.0)
         self.t0 = time_init[0]
-        self.time_all_section = np.concatenate([i for i in self.time])
+        self.time_all_section = np.concatenate(self.time)
         for section in range(self.number_of_section):
             self.set_time_final(section, time_init[section+1] * value)
 
@@ -693,15 +693,15 @@ class Problem:
             result = [self.equality(self, obj)]
 
             # collation point condition
-            for i in range(self.number_of_section):
+            for section in range(self.number_of_section):
                 D = self.D
                 derivative = []
-                for j in range(self.number_of_states[i]):
-                    state_temp = self.states(j, i) / self.unit_states[i][j]
-                    derivative.append(D[i].dot(state_temp))
-                tix = self.time_start(i) / self.unit_time
-                tfx = self.time_final(i) / self.unit_time
-                dx = self.dynamics[i](self, obj, i)
+                for state in range(self.number_of_states[section]):
+                    state_temp = self.states(state, section) / self.unit_states[section][state]
+                    derivative.append(D[section].dot(state_temp))
+                tix = self.time_start(section) / self.unit_time
+                tfx = self.time_final(section) / self.unit_time
+                dx = self.dynamics[section](self, obj, section)
                 result.append(np.array(derivative).ravel() - (tfx - tix) / 2.0 * dx)
 
             # knotting condition
@@ -723,7 +723,7 @@ class Problem:
             if self.running_cost is None:
                 return not_integrated
             integrand = self.running_cost(self, obj)
-            weight = np.concatenate([i for i in self.w])
+            weight = np.concatenate(self.w)
             integrated = sum(integrand * weight)
             return not_integrated + integrated
 
@@ -803,15 +803,15 @@ class Problem:
             result = [self.equality(self, obj)]
 
             # collation point condition
-            for i in range(self.number_of_section):
+            for section in range(self.number_of_section):
                 D = self.D
                 derivative = []
-                for j in range(self.number_of_states[i]):
-                    state_temp = self.states(j, i) / self.unit_states[i][j]
-                    derivative.append(D[i].dot(state_temp))
-                tix = self.time_start(i) / self.unit_time
-                tfx = self.time_final(i) / self.unit_time
-                dx = self.dynamics[i](self, obj, i)
+                for state in range(self.number_of_states[section]):
+                    state_temp = self.states(state, section) / self.unit_states[section][state]
+                    derivative.append(D[section].dot(state_temp))
+                tix = self.time_start(section) / self.unit_time
+                tfx = self.time_final(section) / self.unit_time
+                dx = self.dynamics[section](self, obj, section)
                 result.append(np.array(derivative).ravel() - (tfx - tix) / 2.0 * dx)
 
             # knotting condition
@@ -833,7 +833,7 @@ class Problem:
             if self.running_cost is None:
                 return not_integrated
             integrand = self.running_cost(self, obj)
-            weight = np.concatenate([i for i in self.w])
+            weight = np.concatenate(self.w)
             integrated = sum(integrand * weight)
             return not_integrated + integrated
 
@@ -946,19 +946,19 @@ class Problem:
         self.iterator = 0
         self.time_init = time_init
         self.t0 = time_init[0]
-        self.time_all_section = np.concatenate([i for i in self.time])
+        self.time_all_section = np.concatenate(self.time)
         # ====
         self.unit_states = []
         self.unit_controls = []
         self.unit_time = 1.0
-        for i in range(self.number_of_section):
-            self.unit_states.append([1.0]*self.number_of_states[i])
-            self.unit_controls.append([1.0]*self.number_of_controls[i])
+        for section in range(self.number_of_section):
+            self.unit_states.append([1.0]*self.number_of_states[section])
+            self.unit_controls.append([1.0]*self.number_of_controls[section])
         # ====
         self.p = np.zeros(self.number_of_variables, dtype=float)
         self.bounds = [(None, None)] * self.number_of_variables
-        for i in range(self.number_of_section):
-            self.set_time_final_bounds(i, 0.0, None)
+        for section in range(self.number_of_section):
+            self.set_time_final_bounds(section, 0.0, None)
         # ====
         # function
         self.dynamics = []
@@ -1006,12 +1006,12 @@ class Problem:
         result = np.concatenate((result, self.time_update()), axis=None)
 
         header = "time, "
-        for i in range(self.number_of_states[0]):
-            header += "state%d, " % (i)
-            result = np.vstack((result, self.states_all_section(i)))
-        for i in range(self.number_of_controls[0]):
-            header += "control%d, " % (i)
-            result = np.vstack((result, self.controls_all_section(i)))
+        for state in range(self.number_of_states[0]):
+            header += "state%d, " % (state)
+            result = np.vstack((result, self.states_all_section(state)))
+        for control in range(self.number_of_controls[0]):
+            header += "control%d, " % (control)
+            result = np.vstack((result, self.controls_all_section(control)))
         np.savetxt(filename, result.T, delimiter=delimiter, header=header)
         print("Completed saving \"%s\"" % (filename))
 
@@ -1261,8 +1261,8 @@ class Dynamics(object):
         self.number_of_state = prob.number_of_states[section]
         self.unit_states = prob.unit_states
         self.unit_time = prob.unit_time
-        for i in range(self.number_of_state):
-            self.__dict__[i] = np.zeros(prob.nodes[section])
+        for state in range(self.number_of_state):
+            self.__dict__[state] = np.zeros(prob.nodes[section])
 
     def __getitem__(self, key):
         assert key < self.number_of_state, "Error, Dynamics key out of range"
@@ -1274,8 +1274,8 @@ class Dynamics(object):
 
     def __call__(self):
         dx = np.zeros(0)
-        for i in range(self.number_of_state):
-            temp = self.__dict__[i] * (self.unit_time / self.unit_states[self.section][i])
+        for state in range(self.number_of_state):
+            temp = self.__dict__[state] * (self.unit_time / self.unit_states[self.section][state])
             dx = np.concatenate((dx, temp), axis=None)
         return dx
 
