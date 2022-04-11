@@ -299,7 +299,7 @@ class Problem:
                 1-D array of state
 
         """
-        return self.p_states[section][state,:] * self.unit_states[section][state]
+        return self.p_states[section][state] * self.unit_states[section][state]
 
     def states_all_section(self, state):
         """get states array
@@ -312,9 +312,7 @@ class Problem:
                 1-D array of all section state
 
         """
-        temp = []
-        for section in range(self.number_of_section):
-            temp.append(self.states(state, section))
+        temp = [self.states(state, section) for section in range(self.number_of_section)]
         return np.concatenate(temp, axis=None)
 
     def controls(self, control, section):
@@ -329,7 +327,7 @@ class Problem:
                 1-D array of controls
 
         """
-        return self.p_controls[section][control,:] * self.unit_controls[section][control]
+        return self.p_controls[section][control] * self.unit_controls[section][control]
 
     def controls_all_section(self, control):
         """get controls array
@@ -342,9 +340,7 @@ class Problem:
                 1-D array of all section control
 
         """
-        temp = []
-        for section in range(self.number_of_section):
-            temp.append(self.controls(control, section))
+        temp = [self.controls(control, section) for section in range(self.number_of_section)]
         return np.concatenate(temp,axis=None)
 
     def time_start(self, section):
@@ -354,7 +350,7 @@ class Problem:
             section (int) : section
 
         Returns:
-            time_start (int) : time at section start
+            time_start (float) : time at section start
 
         """
         if (section == 0):
@@ -369,7 +365,7 @@ class Problem:
             section (int) : section
 
         Returns:
-            time_final (int) : time at section end
+            time_final (float) : time at section end
 
         """
         return self.p_time_final[section] * self.unit_time
@@ -381,13 +377,10 @@ class Problem:
             section (int) : section
 
         Returns:
-            time_final_all_section (int) : time at end
+            time_final_all_section (list) : time at end
 
         """
-        tf = []
-        for section in range(self.number_of_section):
-            tf = tf + [self.time_final(section)]
-        return tf
+        return (self.p_time_final * self.unit_time).tolist()
 
     def set_states(self, state, section, value):
         """set value to state at specific section
@@ -399,7 +392,7 @@ class Problem:
 
         """
         assert len(value) == self.nodes[section], "Error: value length is NOT match nodes length"
-        self.p_states[section][state,:] = value / self.unit_states[section][state]
+        self.p_states[section][state] = value / self.unit_states[section][state]
 
     def set_states_all_section(self, state, value_all_section):
         """set value to state at all section
@@ -425,7 +418,7 @@ class Problem:
 
         """
         assert len(value) == self.nodes[section], "Error: value length is NOT match nodes length"
-        self.p_controls[section][control,:] = value / self.unit_controls[section][control]
+        self.p_controls[section][control] = value / self.unit_controls[section][control]
 
     def set_controls_all_section(self, control, value_all_section):
         """set value to control at all section
@@ -687,11 +680,8 @@ class Problem:
 
             # collation point condition
             for section in range(self.number_of_section):
-                D = self.D
-                derivative = []
-                for state in range(self.number_of_states[section]):
-                    state_temp = self.states(state, section) / self.unit_states[section][state]
-                    derivative.append(D[section].dot(state_temp))
+                state_temp = self.p_states[section].T
+                derivative = (self.D[section].dot(state_temp)).T
                 tix = self.time_start(section) / self.unit_time
                 tfx = self.time_final(section) / self.unit_time
                 dx = self.dynamics[section](self, obj, section)
@@ -799,11 +789,8 @@ class Problem:
 
             # collation point condition
             for section in range(self.number_of_section):
-                D = self.D
-                derivative = []
-                for state in range(self.number_of_states[section]):
-                    state_temp = self.states(state, section) / self.unit_states[section][state]
-                    derivative.append(D[section].dot(state_temp))
+                state_temp = self.p_states[section].T
+                derivative = (self.D[section].dot(state_temp)).T
                 tix = self.time_start(section) / self.unit_time
                 tfx = self.time_final(section) / self.unit_time
                 dx = self.dynamics[section](self, obj, section)
@@ -941,6 +928,7 @@ class Problem:
             self.unit_controls.append([1.0]*self.number_of_controls[section])
         # ====
         self.p = np.zeros(self.number_of_variables, dtype=float)
+        self.bounds = [(None, None)] * self.number_of_variables
         self.p_states = [np.zeros((self.number_of_states[section], self.nodes[section]), dtype=float) for section in range(self.number_of_section)]
         self.p_controls = [np.zeros((self.number_of_controls[section], self.nodes[section]), dtype=float) for section in range(self.number_of_section)]
         self.p_time_final = np.zeros(self.number_of_section)
