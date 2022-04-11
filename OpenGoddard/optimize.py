@@ -269,6 +269,24 @@ class Problem:
         div_back = self.div[section][self.number_of_states[section] + control]
         return div_back, div_front
 
+    def _set_p_from_newform(self):
+        p = []
+        for section in range(self.number_of_section):
+            p.append(self.p_states[section].ravel())
+            p.append(self.p_controls[section].ravel())
+        p.append(self.p_time_final)
+        self.p = np.concatenate(p, axis=None)
+
+    def _set_newform_from_p(self):
+        index = 0
+        for section in range(self.number_of_section):
+            self.p_states[section] = self.p[index:index+self.number_of_statevariables[section]].reshape(self.number_of_states[section], self.nodes[section])
+            index += self.number_of_statevariables[section]
+            self.p_controls[section] = self.p[index:index+self.number_of_controlvariables[section]].reshape(self.number_of_controls[section], self.nodes[section])
+            index += self.number_of_controlvariables[section]
+        self.p_time_final = self.p[index:index+self.number_of_section]
+        assert(index + self.number_of_section == len(self.p))
+
     def states(self, state, section):
         """getter specify section states array
 
@@ -281,8 +299,7 @@ class Problem:
                 1-D array of state
 
         """
-        div_back, div_front = self._division_states(state, section)
-        return self.p[div_front:div_back] * self.unit_states[section][state]
+        return self.p_states[section][state,:] * self.unit_states[section][state]
 
     def states_all_section(self, state):
         """get states array
@@ -312,8 +329,7 @@ class Problem:
                 1-D array of controls
 
         """
-        div_back, div_front = self._division_controls(control, section)
-        return self.p[div_front:div_back] * self.unit_controls[section][control]
+        return self.p_controls[section][control,:] * self.unit_controls[section][control]
 
     def controls_all_section(self, control):
         """get controls array
@@ -344,8 +360,7 @@ class Problem:
         if (section == 0):
             return self.t0
         else:
-            time_start_index = range(-self.number_of_section - 1, 0)
-            return self.p[time_start_index[section]] * self.unit_time
+            return self.p_time_final[section-1] * self.unit_time
 
     def time_final(self, section):
         """ get time at section "end"
@@ -357,8 +372,7 @@ class Problem:
             time_final (int) : time at section end
 
         """
-        time_final_index = range(-self.number_of_section, 0)
-        return self.p[time_final_index[section]] * self.unit_time
+        return self.p_time_final[section] * self.unit_time
 
     def time_final_all_section(self):
         """ get time at "end"
@@ -381,19 +395,18 @@ class Problem:
         Args:
             state (int) : state
             section (int) : section
-            value (int) : value
+            value (ndarray) : value
 
         """
         assert len(value) == self.nodes[section], "Error: value length is NOT match nodes length"
-        div_back, div_front = self._division_states(state, section)
-        self.p[div_front:div_back] = value / self.unit_states[section][state]
+        self.p_states[section][state,:] = value / self.unit_states[section][state]
 
     def set_states_all_section(self, state, value_all_section):
         """set value to state at all section
 
         Args:
             state (int) : state
-            value_all_section (int) : value
+            value_all_section (ndarray) : value
 
         """
         div = 0
@@ -408,19 +421,18 @@ class Problem:
         Args:
             control (int) : control
             section (int) : section
-            value (int) : value
+            value (ndarray) : value
 
         """
         assert len(value) == self.nodes[section], "Error: value length is NOT match nodes length"
-        div_back, div_front = self._division_controls(control, section)
-        self.p[div_front:div_back] = value / self.unit_controls[section][control]
+        self.p_controls[section][control,:] = value / self.unit_controls[section][control]
 
     def set_controls_all_section(self, control, value_all_section):
         """set value to control at all section
 
         Args:
             control (int) : control
-            value_all_section (int) : value
+            value_all_section (ndarray) : value
 
         """
         div = 0
@@ -437,8 +449,7 @@ class Problem:
             value (float) : value
 
         """
-        time_final_index = range(-self.number_of_section, 0)
-        self.p[time_final_index[section]] = value / self.unit_time
+        self.p_time_final[section] = value / self.unit_time
 
     def set_states_bounds(self, state, section, lb, ub):
         """ set value to bounds of state at specific section
@@ -712,6 +723,7 @@ class Problem:
         def wrap_for_solver(func, arg0, arg1):
             def for_solver(p, arg0, arg1):
                 self.p = p
+                self._set_newform_from_p()
                 return func(arg0, arg1)
             return for_solver
 
@@ -735,6 +747,7 @@ class Problem:
 
         ftol = options.setdefault("ftol", 1e-6)
         maxiter = options.setdefault("maxiter", 25)
+        self._set_p_from_newform()
 
         while self.iterator < self.maxIterator:
             print("---- iteration : {0} ----".format(self.iterator+1))
@@ -819,29 +832,7 @@ class Problem:
             integrated = sum(integrand * weight)
             return not_integrated + integrated
 
-        def wrap_for_solver(func, arg0, arg1):
-            def for_solver(p, arg0, arg1):
-                self.p = p
-                return func(arg0, arg1)
-            return for_solver
 
-        # def wrap_for_solver(func, *args):
-        #     def for_solver(p, *args):
-        #         self.p = p
-        #         return func(*args)
-        #     return for_solver
-
-        cons = ({'type': 'eq',
-                 'fun': wrap_for_solver(equality_add, self.equality, obj),
-                'args': (self, obj,)},
-                {'type': 'ineq',
-                 'fun': wrap_for_solver(self.inequality, self, obj),
-                 'args': (self, obj,)})
-
-        if (self.cost_derivative is None):
-            jac = None
-        else:
-            jac = wrap_for_solver(self.cost_derivative, self, obj)
 
         ftol = options.setdefault("ftol", 1e-6)
         maxiter = options.setdefault("maxiter", 500)
@@ -850,6 +841,7 @@ class Problem:
         def objfunc(xdict):
             x = xdict["xvars"]
             self.p = x
+            self._set_newform_from_p()
             funcs = {}
             funcs["obj"] = cost_add(self.cost, obj)
             funcs["eqcon"] = equality_add(self.equality, obj)
@@ -865,6 +857,7 @@ class Problem:
         if self.bounds is not None:
             var_lower = [b[0] for b in self.bounds]
             var_upper = [b[1] for b in self.bounds]
+        self._set_p_from_newform()
         optProb.addVarGroup("xvars", len(self.p), "c", value=self.p, lower=var_lower, upper=var_upper)
         optProb.addConGroup("eqcon", len(equality_add(self.equality, obj)), lower=0.0, upper=0.0)
         optProb.addConGroup("ineqcon", len(self.inequality(self, obj)), lower=0.0, upper=None)
@@ -881,6 +874,7 @@ class Problem:
                                 })
         sol = opt(optProb, sens="FD", sensMode="pgc")
         self.p = sol.xStar["xvars"]
+        self._set_newform_from_p()
         print(sol.optInform["text"])
         print("fun: {0}".format(sol.fStar))
         print("userObjCalls: {0}".format(sol.userObjCalls))
@@ -920,6 +914,8 @@ class Problem:
         self.div = self._make_param_division(nodes, number_of_states, number_of_controls)
         self.number_of_section = len(self.nodes)
         self.number_of_param = np.array(number_of_states) + np.array(number_of_controls)
+        self.number_of_statevariables = np.array(nodes) * self.number_of_states 
+        self.number_of_controlvariables = np.array(nodes) * self.number_of_controls
         self.number_of_variables = sum(self.number_of_param * nodes) + self.number_of_section
         self.tau = []
         self.w = []
@@ -945,9 +941,9 @@ class Problem:
             self.unit_controls.append([1.0]*self.number_of_controls[section])
         # ====
         self.p = np.zeros(self.number_of_variables, dtype=float)
-        self.bounds = [(None, None)] * self.number_of_variables
-        for section in range(self.number_of_section):
-            self.set_time_final_bounds(section, 0.0, None)
+        self.p_states = [np.zeros((self.number_of_states[section], self.nodes[section]), dtype=float) for section in range(self.number_of_section)]
+        self.p_controls = [np.zeros((self.number_of_controls[section], self.nodes[section]), dtype=float) for section in range(self.number_of_section)]
+        self.p_time_final = np.zeros(self.number_of_section)
         # ====
         # function
         self.dynamics = []
