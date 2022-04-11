@@ -691,11 +691,10 @@ class Problem:
             for knot in range(self.number_of_section - 1):
                 if (self.number_of_states[knot] != self.number_of_states[knot + 1]):
                     continue  # if states are not continuous on knot, knotting condition skip
-                for state in range(self.number_of_states[knot]):
-                    param_prev = self.states(state, knot) / self.unit_states[knot][state]
-                    param_post = self.states(state, knot + 1) / self.unit_states[knot][state]
-                    if (self.knot_states_smooth[knot]):
-                        result.append(param_prev[-1] - param_post[0])
+                if (self.knot_states_smooth[knot]):
+                    param_prev = self.p_states[knot][:,-1]
+                    param_post = self.p_states[knot+1][:,0]
+                    result.append(param_prev - param_post)
 
             return np.concatenate(result, axis=None)
 
@@ -800,11 +799,10 @@ class Problem:
             for knot in range(self.number_of_section - 1):
                 if (self.number_of_states[knot] != self.number_of_states[knot + 1]):
                     continue  # if states are not continuous on knot, knotting condition skip
-                for state in range(self.number_of_states[knot]):
-                    param_prev = self.states(state, knot) / self.unit_states[knot][state]
-                    param_post = self.states(state, knot + 1) / self.unit_states[knot][state]
-                    if (self.knot_states_smooth[knot]):
-                        result.append(param_prev[-1] - param_post[0])
+                if (self.knot_states_smooth[knot]):
+                    param_prev = self.p_states[knot][:,-1]
+                    param_post = self.p_states[knot+1][:,0]
+                    result.append(param_prev - param_post)
 
             return np.concatenate(result, axis=None)
 
@@ -1129,7 +1127,7 @@ class Condition(object):
 
     """
     def __init__(self, length=0):
-        self._condition = np.zeros(length)
+        self._condition = []
 
     # def add(self, *args):
     #     for arg in args:
@@ -1141,7 +1139,10 @@ class Condition(object):
         Args:
             arg (array_like) : condition
         """
-        self._condition = np.concatenate((self._condition, arg / unit), axis=None)
+        if hasattr(arg, "__iter__"):
+            self._condition.extend(arg / unit)
+        else:
+            self._condition.append(arg / unit)
 
     def equal(self, arg1, arg2, unit=1.0):
         """add equation constraint condition in Problem equality function
@@ -1246,10 +1247,9 @@ class Dynamics(object):
         self.__dict__[key] = value
 
     def __call__(self):
-        dx = np.zeros(0)
-        for state in range(self.number_of_state):
-            temp = self.__dict__[state] * (self.unit_time / self.unit_states[self.section][state])
-            dx = np.concatenate((dx, temp), axis=None)
+
+        temp = [self.__dict__[state] * (self.unit_time / self.unit_states[self.section][state]) for state in range(self.number_of_state)]
+        dx = np.concatenate(temp, axis=None)
         return dx
 
 
