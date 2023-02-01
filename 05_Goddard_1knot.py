@@ -18,10 +18,10 @@ class Rocket:
         self.Hc = 500  # Use for drag
         self.Vc = 620  # Use for drag
         self.Mc = 0.6  # Fraction of initial mass left at end
-        self.c = 0.5 * np.sqrt(self.g0*self.H0)  # Thrust-to-fuel mass
-        self.Mf = self.Mc * self.M0               # Final mass
+        self.c = 0.5 * np.sqrt(self.g0 * self.H0)  # Thrust-to-fuel mass
+        self.Mf = self.Mc * self.M0  # Final mass
         self.Dc = 0.5 * self.Vc * self.M0 / self.g0  # Drag scaling
-        self.T_max = self.Tc * self.g0 * self.M0     # Maximum thrust
+        self.T_max = self.Tc * self.g0 * self.M0  # Maximum thrust
 
 
 def dynamics(prob, obj, section):
@@ -32,13 +32,13 @@ def dynamics(prob, obj, section):
 
     Dc = obj.Dc
     c = obj.c
-    drag = 1 * Dc * v ** 2 * np.exp(-obj.Hc * (h - obj.H0) / obj.H0)
-    g = obj.g0 * (obj.H0 / h)**2
+    drag = 1 * Dc * v**2 * np.exp(-obj.Hc * (h - obj.H0) / obj.H0)
+    g = obj.g0 * (obj.H0 / h) ** 2
 
     dx = Dynamics(prob, section)
     dx[0] = v
     dx[1] = (T - drag) / m - g
-    dx[2] = - T / c
+    dx[2] = -T / c
     return dx()
 
 
@@ -99,6 +99,7 @@ def cost_derivative(prob, obj):
     index_h_end = prob.index_states(0, -1, -1)
     jac.change_value(index_h_end, -1)
     return jac()
+
 
 # ========================
 plt.close("all")
@@ -172,6 +173,7 @@ def display_func():
     h = prob.states_all_section(0)
     print("max altitude: {0:.5f}".format(h[-1]))
 
+
 prob.solve(obj, display_func, ftol=1e-10)
 
 # ========================
@@ -187,8 +189,8 @@ time = prob.time_update()
 # ------------------------
 # Calculate necessary variables
 Dc = 0.5 * 620 * 1.0 / 1.0
-drag = 1 * Dc * v ** 2 * np.exp(-500 * (h - 1.0) / 1.0)
-g = 1.0 * (1.0 / h)**2
+drag = 1 * Dc * v**2 * np.exp(-500 * (h - 1.0) / 1.0)
+g = 1.0 * (1.0 / h) ** 2
 
 # ------------------------
 # Visualizetion
@@ -200,7 +202,8 @@ for line in prob.time_knots():
 plt.grid()
 plt.xlabel("time [s]")
 plt.ylabel("Altitude [-]")
-if(flag_savefig): plt.savefig(savefig_file + "altitude" + ".png")
+if flag_savefig:
+    plt.savefig(savefig_file + "altitude" + ".png")
 
 plt.figure()
 plt.title("Velocity")
@@ -210,7 +213,8 @@ for line in prob.time_knots():
 plt.grid()
 plt.xlabel("time [s]")
 plt.ylabel("Velocity [-]")
-if(flag_savefig): plt.savefig(savefig_file + "velocity" + ".png")
+if flag_savefig:
+    plt.savefig(savefig_file + "velocity" + ".png")
 
 plt.figure()
 plt.title("Mass")
@@ -220,7 +224,8 @@ for line in prob.time_knots():
 plt.grid()
 plt.xlabel("time [s]")
 plt.ylabel("Mass [-]")
-if(flag_savefig): plt.savefig(savefig_file + "mass" + ".png")
+if flag_savefig:
+    plt.savefig(savefig_file + "mass" + ".png")
 
 plt.figure()
 plt.title("Thrust profile")
@@ -233,6 +238,7 @@ plt.grid()
 plt.xlabel("time [s]")
 plt.ylabel("Thrust [-]")
 plt.legend(loc="best")
-if(flag_savefig): plt.savefig(savefig_file + "force" + ".png")
+if flag_savefig:
+    plt.savefig(savefig_file + "force" + ".png")
 
 plt.show()

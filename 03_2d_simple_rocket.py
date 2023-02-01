@@ -62,10 +62,10 @@ def inequality(prob, obj):
     result = Condition()
 
     # lower bounds
-    result.lower_bound(beta, -np.pi/2)
+    result.lower_bound(beta, -np.pi / 2)
 
     # upper bounds
-    result.upper_bound(beta, np.pi/2)
+    result.upper_bound(beta, np.pi / 2)
 
     return result()
 
@@ -144,7 +144,8 @@ plt.grid()
 plt.xlabel("time [s]")
 plt.ylabel("angle [rad]")
 plt.legend(loc="best")
-if(flag_savefig): plt.savefig(savefig_dir + "plot" + ".png")
+if flag_savefig:
+    plt.savefig(savefig_dir + "plot" + ".png")
 
 plt.figure()
 plt.plot(x, y, marker="o", label="trajectry")
@@ -154,8 +155,9 @@ plt.axvline(0, color="k")
 plt.grid()
 plt.xlabel("x [m]")
 plt.ylabel("y [m]")
-plt.axis('equal')
+plt.axis("equal")
 plt.legend(loc="best")
-if(flag_savefig): plt.savefig(savefig_dir + "trajectry" + ".png")
+if flag_savefig:
+    plt.savefig(savefig_dir + "trajectry" + ".png")
 
 plt.show()

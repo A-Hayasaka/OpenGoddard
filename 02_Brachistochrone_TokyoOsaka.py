@@ -83,6 +83,7 @@ def cost_derivative(prob, obj):
     jac.change_value(index_tf, 1)
     return jac()
 
+
 # ========================
 plt.close("all")
 plt.ion()
@@ -174,8 +175,8 @@ time = prob.time_update()
 # Visualizetion
 plt.figure()
 plt.subplot(2, 1, 1)
-plt.plot(time, x/1000, marker="o", label="x")
-plt.plot(time, y/1000, marker="o", label="y")
+plt.plot(time, x / 1000, marker="o", label="x")
+plt.plot(time, y / 1000, marker="o", label="y")
 plt.plot(time, v, marker="o", label="v")
 for line in prob.time_knots():
     plt.axvline(line, color="k", alpha=0.5)
@@ -191,19 +192,21 @@ plt.grid()
 plt.xlabel("time [s]")
 plt.ylabel("angle [rad]")
 plt.legend(loc="best")
-if(flag_savefig): plt.savefig(savefig_dir + "plot" + ".png")
+if flag_savefig:
+    plt.savefig(savefig_dir + "plot" + ".png")
 
 plt.figure()
-plt.plot(x/1000, y/1000, marker="o", label="trajectry")
+plt.plot(x / 1000, y / 1000, marker="o", label="trajectry")
 plt.axhline(0, color="k")
 plt.axvline(0, color="k")
-plt.axvline(obj.l/1000, color="k")
+plt.axvline(obj.l / 1000, color="k")
 plt.grid()
 plt.xlabel("x [km]")
 plt.ylabel("y [km]")
-plt.axis('equal')
+plt.axis("equal")
 plt.legend(loc="best")
 plt.gca().invert_yaxis()
-if(flag_savefig): plt.savefig(savefig_dir + "trajectry" + ".png")
+if flag_savefig:
+    plt.savefig(savefig_dir + "trajectry" + ".png")
 
 plt.show()

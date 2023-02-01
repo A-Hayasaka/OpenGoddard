@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from OpenGoddard.optimize import Problem, Guess, Condition, Dynamics
 
+
 class Ball:
     def __init__(self):
         self.g = 1.0  # gravity
@@ -79,6 +80,7 @@ def cost_derivative(prob, obj):
     index_tf = prob.index_time_final(-1)
     jac.change_value(index_tf, 1)
     return jac()
+
 
 # ========================
 plt.close("all")
@@ -158,7 +160,8 @@ plt.grid()
 plt.xlabel("time [s]")
 plt.ylabel("angle [rad]")
 plt.legend(loc="best")
-if(flag_savefig): plt.savefig(savefig_dir + "plot" + ".png")
+if flag_savefig:
+    plt.savefig(savefig_dir + "plot" + ".png")
 
 x_wall = np.linspace(0, obj.l)
 y_wall = x_wall * np.tan(obj.theta0) + obj.h
@@ -174,6 +177,7 @@ plt.ylabel("y [m]")
 # plt.ylim([-0.02, 0.6])
 plt.legend(loc="best")
 plt.gca().invert_yaxis()
-if(flag_savefig): plt.savefig(savefig_dir + "trajectry" + ".png")
+if flag_savefig:
+    plt.savefig(savefig_dir + "trajectry" + ".png")
 
 plt.show()

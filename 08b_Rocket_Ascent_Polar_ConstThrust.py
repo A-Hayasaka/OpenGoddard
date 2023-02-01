@@ -9,7 +9,6 @@ from OpenGoddard.optimize import Problem, Guess, Condition, Dynamics
 
 
 class Rocket:
-
     def __init__(self):
         self.tf = 3.32
         self.Thrust = 0.1405
@@ -19,11 +18,11 @@ class Rocket:
 
 
 def dynamics(prob, obj, section):
-    r     = prob.states(0, section)
+    r = prob.states(0, section)
     theta = prob.states(1, section)
-    u     = prob.states(2, section)
-    v     = prob.states(3, section)
-    m     = prob.states(4, section)
+    u = prob.states(2, section)
+    v = prob.states(3, section)
+    m = prob.states(4, section)
     gamma = prob.controls(0, section)
 
     dx = Dynamics(prob, section)
@@ -36,11 +35,11 @@ def dynamics(prob, obj, section):
 
 
 def equality(prob, obj):
-    r     = prob.states_all_section(0)
+    r = prob.states_all_section(0)
     theta = prob.states_all_section(1)
-    u     = prob.states_all_section(2)
-    v     = prob.states_all_section(3)
-    m     = prob.states_all_section(4)
+    u = prob.states_all_section(2)
+    v = prob.states_all_section(3)
+    m = prob.states_all_section(4)
     gamma = prob.controls_all_section(0)
     time_final = prob.time_final_all_section()
 
@@ -73,11 +72,13 @@ def cost(prob, obj):
     # cost function should be near 1.0
     return -r[-1]
 
+
 def cost_derivative(prob, obj):
     jac = Condition(prob.number_of_variables)
     index_rf = prob.index_states(1, 0, -1)
-    jac.change_value(index_rf, - 1.0)
+    jac.change_value(index_rf, -1.0)
     return jac()
+
 
 # ========================
 # plt.close("all")
@@ -150,19 +151,20 @@ def display_func():
     R = prob.states_all_section(0)
     print("max altitude: {0:.5f}".format(R[-1]))
 
+
 prob.solve(obj, display_func, ftol=1e-8)
 
 # ========================
 # Post Process
 # ------------------------
 # Convert parameter vector to variable
-r     = prob.states_all_section(0)
+r = prob.states_all_section(0)
 theta = prob.states_all_section(1)
-u     = prob.states_all_section(2)
-v     = prob.states_all_section(3)
-m     = prob.states_all_section(4)
+u = prob.states_all_section(2)
+v = prob.states_all_section(3)
+m = prob.states_all_section(4)
 gamma = prob.controls_all_section(0)
-time  = prob.time_update()
+time = prob.time_update()
 
 
 # ------------------------
@@ -175,7 +177,8 @@ for line in prob.time_knots():
 plt.grid()
 plt.xlabel("time")
 plt.ylabel("Altitude")
-if(flag_savefig): plt.savefig(savefig_file + "altitude" + ".png")
+if flag_savefig:
+    plt.savefig(savefig_file + "altitude" + ".png")
 
 plt.figure()
 plt.title("Velocity")
@@ -187,7 +190,8 @@ plt.grid()
 plt.xlabel("time")
 plt.ylabel("Velocity")
 plt.legend(loc="best")
-if(flag_savefig): plt.savefig(savefig_file + "velocity" + ".png")
+if flag_savefig:
+    plt.savefig(savefig_file + "velocity" + ".png")
 
 plt.figure()
 plt.title("Mass")
@@ -197,7 +201,8 @@ for line in prob.time_knots():
 plt.grid()
 plt.xlabel("time")
 plt.ylabel("Mass")
-if(flag_savefig): plt.savefig(savefig_file + "mass" + ".png")
+if flag_savefig:
+    plt.savefig(savefig_file + "mass" + ".png")
 
 plt.figure()
 plt.title("Control")
@@ -208,6 +213,7 @@ plt.grid()
 plt.xlabel("time")
 plt.ylabel("Thrust angle")
 plt.legend(loc="best")
-if(flag_savefig): plt.savefig(savefig_file + "control" + ".png")
+if flag_savefig:
+    plt.savefig(savefig_file + "control" + ".png")
 
 plt.show()

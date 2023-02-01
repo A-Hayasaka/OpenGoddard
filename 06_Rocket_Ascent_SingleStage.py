@@ -21,9 +21,9 @@ class Rocket:
         self.max_thrust = 2  # maximum thrust to initial weight ratio
 
     def air_density(self, h):
-        beta = 1/8500.0  # scale factor [1/m]
+        beta = 1 / 8500.0  # scale factor [1/m]
         rho0 = 1.225  # kg/m3
-        return rho0*np.exp(-beta*h)
+        return rho0 * np.exp(-beta * h)
 
 
 def dynamics(prob, obj, section):
@@ -33,7 +33,7 @@ def dynamics(prob, obj, section):
     T = prob.controls(0, section)
 
     rho = obj.air_density(R - obj.Re)
-    drag = 0.5 * rho * v ** 2 * obj.Cd * obj.area
+    drag = 0.5 * rho * v**2 * obj.Cd * obj.area
     g = obj.GMe / R**2
     g0 = obj.g0
     Isp = obj.Isp
@@ -41,7 +41,7 @@ def dynamics(prob, obj, section):
     dx = Dynamics(prob, section)
     dx[0] = v
     dx[1] = (T - drag) / m - g
-    dx[2] = - T / g0 / Isp
+    dx[2] = -T / g0 / Isp
     return dx()
 
 
@@ -96,6 +96,7 @@ def cost_derivative(prob, obj):
     jac.change_value(index_R_end, -1)
     return jac()
 
+
 # ========================
 plt.close("all")
 plt.ion()
@@ -134,7 +135,7 @@ prob.set_unit_time(unit_t)
 # Initial parameter guess
 
 # altitude profile
-R_init = Guess.cubic(prob.time_all_section, obj.Re, 0.0, obj.Re+50*1000, 0.0)
+R_init = Guess.cubic(prob.time_all_section, obj.Re, 0.0, obj.Re + 50 * 1000, 0.0)
 # Guess.plot(prob.time_all_section, R_init, "Altitude", "time", "Altitude")
 # if(flag_savefig):plt.savefig(savefig_file + "guess_alt" + ".png")
 
@@ -143,12 +144,14 @@ V_init = Guess.linear(prob.time_all_section, 0.0, 0.0)
 # Guess.plot(prob.time_all_section, V_init, "Velocity", "time", "Velocity")
 
 # mass profile
-M_init = Guess.cubic(prob.time_all_section, obj.M0, -0.6, obj.M0*obj.Mc, 0.0)
+M_init = Guess.cubic(prob.time_all_section, obj.M0, -0.6, obj.M0 * obj.Mc, 0.0)
 # Guess.plot(prob.time_all_section, M_init, "Mass", "time", "Mass")
 # if(flag_savefig):plt.savefig(savefig_file + "guess_mass" + ".png")
 
 # thrust profile
-T_init = Guess.cubic(prob.time_all_section, obj.max_thrust * obj.M0 * obj.g0, 0.0, 0.0, 0.0)
+T_init = Guess.cubic(
+    prob.time_all_section, obj.max_thrust * obj.M0 * obj.g0, 0.0, 0.0, 0.0
+)
 # Guess.plot(prob.time_all_section, T_init, "Thrust Guess", "time", "Thrust")
 # if(flag_savefig):plt.savefig(savefig_file + "guess_mass" + ".png")
 
@@ -163,7 +166,7 @@ prob.set_controls_all_section(0, T_init)
 
 prob.set_states_bounds_all_section(0, obj.Re, None)
 prob.set_states_bounds_all_section(1, 0.0, None)
-prob.set_states_bounds_all_section(2, obj.M0*obj.Mc, obj.M0)
+prob.set_states_bounds_all_section(2, obj.M0 * obj.Mc, obj.M0)
 prob.set_controls_bounds_all_section(0, 0.0, obj.max_thrust * obj.M0 * obj.g0)
 prob.set_time_final_bounds(0, 10.0, None)
 
@@ -182,6 +185,7 @@ def display_func():
     R = prob.states_all_section(0)
     print("max altitude: {0:.5f}".format(R[-1] - obj.Re))
 
+
 prob.solve(obj, display_func, ftol=1e-12)
 
 # ========================
@@ -197,20 +201,21 @@ time = prob.time_update()
 # ------------------------
 # Calculate necessary variables
 rho = obj.air_density(R - obj.Re)
-drag = 0.5 * rho * v ** 2 * obj.Cd * obj.area
+drag = 0.5 * rho * v**2 * obj.Cd * obj.area
 g = obj.GMe / R**2
 
 # ------------------------
 # Visualizetion
 plt.figure()
 plt.title("Altitude profile")
-plt.plot(time, (R - obj.Re)/1000, marker="o", label="Altitude")
+plt.plot(time, (R - obj.Re) / 1000, marker="o", label="Altitude")
 for line in prob.time_knots():
     plt.axvline(line, color="k", alpha=0.5)
 plt.grid()
 plt.xlabel("time [s]")
 plt.ylabel("Altitude [km]")
-if(flag_savefig): plt.savefig(savefig_file + "altitude" + ".png")
+if flag_savefig:
+    plt.savefig(savefig_file + "altitude" + ".png")
 
 plt.figure()
 plt.title("Velocity")
@@ -220,7 +225,8 @@ for line in prob.time_knots():
 plt.grid()
 plt.xlabel("time [s]")
 plt.ylabel("Velocity [m/s]")
-if(flag_savefig): plt.savefig(savefig_file + "velocity" + ".png")
+if flag_savefig:
+    plt.savefig(savefig_file + "velocity" + ".png")
 
 plt.figure()
 plt.title("Mass")
@@ -230,7 +236,8 @@ for line in prob.time_knots():
 plt.grid()
 plt.xlabel("time [s]")
 plt.ylabel("Mass [kg]")
-if(flag_savefig): plt.savefig(savefig_file + "mass" + ".png")
+if flag_savefig:
+    plt.savefig(savefig_file + "mass" + ".png")
 
 plt.figure()
 plt.title("Thrust profile")
@@ -243,6 +250,7 @@ plt.grid()
 plt.xlabel("time [s]")
 plt.ylabel("Thrust [kN]")
 plt.legend(loc="best")
-if(flag_savefig): plt.savefig(savefig_file + "force" + ".png")
+if flag_savefig:
+    plt.savefig(savefig_file + "force" + ".png")
 
 plt.show()

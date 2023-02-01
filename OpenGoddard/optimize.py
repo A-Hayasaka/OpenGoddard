@@ -32,12 +32,12 @@ import numpy as np
 from scipy import special
 from scipy import interpolate
 from scipy import optimize
-from pyoptsparse import SLSQP,IPOPT,Optimization
+from pyoptsparse import SLSQP, IPOPT, Optimization
 import matplotlib.pyplot as plt
 
 
 class Problem:
-    """ OpenGoddard Problem class.
+    """OpenGoddard Problem class.
 
     Args:
         time_init (list of float) : [time_start, time_section0, time_section0, , , time_final]
@@ -72,6 +72,7 @@ class Problem:
         inequality (function) : (default = None)
 
     """
+
     def _LegendreFunction(self, x, n):
         Legendre, Derivative = special.lpn(n, x)
         return Legendre[-1]
@@ -81,12 +82,12 @@ class Problem:
         return Derivative[-1]
 
     def _nodes_LG(self, n):
-        '''Return Gauss-Legendre nodes.'''
+        """Return Gauss-Legendre nodes."""
         nodes, weight = special.p_roots(n)
         return nodes
 
     def _weight_LG(self, n):
-        '''Return Gauss-Legendre weight.'''
+        """Return Gauss-Legendre weight."""
         nodes, weight = special.p_roots(n)
         return weight
 
@@ -96,15 +97,17 @@ class Problem:
         for i in range(n):
             for j in range(n):
                 if i != j:
-                    D[i, j] = self._LegendreDerivative(tau[i], n) \
-                              / self._LegendreDerivative(tau[j], n) \
-                              / (tau[i] - tau[j])
+                    D[i, j] = (
+                        self._LegendreDerivative(tau[i], n)
+                        / self._LegendreDerivative(tau[j], n)
+                        / (tau[i] - tau[j])
+                    )
                 else:
-                    D[i, j] = tau[i] / (1 - tau[i]**2)
+                    D[i, j] = tau[i] / (1 - tau[i] ** 2)
         return D
 
     def method_LG(self, n):
-        """ Legendre-Gauss Pseudospectral method
+        """Legendre-Gauss Pseudospectral method
         Gauss nodes are roots of :math:`P_n(x)`.
 
         Args:
@@ -119,17 +122,20 @@ class Problem:
         return nodes, weight, D
 
     def _nodes_LGR(self, n):
-        '''Return Gauss-Radau nodes.'''
-        roots, weight = special.j_roots(n-1, 0, 1)
+        """Return Gauss-Radau nodes."""
+        roots, weight = special.j_roots(n - 1, 0, 1)
         nodes = np.concatenate((-1, roots), axis=None)
         return nodes
 
     def _weight_LGR(self, n):
-        '''Return Gauss-Legendre weight.'''
+        """Return Gauss-Legendre weight."""
         nodes = self._nodes_LGR(n)
         w = np.zeros(0)
         for i in range(n):
-            w = np.append(w, (1-nodes[i])/(n*n*self._LegendreFunction(nodes[i], n-1)**2))
+            w = np.append(
+                w,
+                (1 - nodes[i]) / (n * n * self._LegendreFunction(nodes[i], n - 1) ** 2),
+            )
         return w
 
     def _differentiation_matrix_LGR(self, n):
@@ -138,17 +144,21 @@ class Problem:
         for i in range(n):
             for j in range(n):
                 if i != j:
-                    D[i, j] = self._LegendreFunction(tau[i], n-1) \
-                              / self._LegendreFunction(tau[j], n-1) \
-                              * (1 - tau[j]) / (1 - tau[i]) / (tau[i] - tau[j])
+                    D[i, j] = (
+                        self._LegendreFunction(tau[i], n - 1)
+                        / self._LegendreFunction(tau[j], n - 1)
+                        * (1 - tau[j])
+                        / (1 - tau[i])
+                        / (tau[i] - tau[j])
+                    )
                 elif i == j and i == 0:
-                    D[i, j] = -(n-1)*(n+1)*0.25
+                    D[i, j] = -(n - 1) * (n + 1) * 0.25
                 else:
                     D[i, j] = 1 / (2 * (1 - tau[i]))
         return D
 
     def method_LGR(self, n):
-        """ Legendre-Gauss-Radau Pseudospectral method
+        """Legendre-Gauss-Radau Pseudospectral method
         Gauss-Radau nodes are roots of :math:`P_n(x) + P_{n-1}(x)`.
 
         Args:
@@ -170,51 +180,57 @@ class Problem:
         """
         x0 = np.zeros(0)
         for i in range(2, n):
-            xi = (1-3.0*(n-2)/8.0/(n-1)**3)*np.cos((4.0*i-3)/(4.0*(n-1)+1)*np.pi)
+            xi = (1 - 3.0 * (n - 2) / 8.0 / (n - 1) ** 3) * np.cos(
+                (4.0 * i - 3) / (4.0 * (n - 1) + 1) * np.pi
+            )
             x0 = np.append(x0, xi)
         x0 = np.sort(x0)
 
         roots = np.zeros(0)
         for x in x0:
-            optResult = optimize.root(self._LegendreDerivative, x, args=(n-1,))
+            optResult = optimize.root(self._LegendreDerivative, x, args=(n - 1,))
             roots = np.append(roots, optResult.x)
         nodes = np.concatenate((-1, roots, 1), axis=None)
         return nodes
 
     def _nodes_LGL(self, n):
-        """ Legendre-Gauss-Lobatto(LGL) points"""
-        roots, weight = special.j_roots(n-2, 1, 1)
+        """Legendre-Gauss-Lobatto(LGL) points"""
+        roots, weight = special.j_roots(n - 2, 1, 1)
         nodes = np.concatenate((-1, roots, 1), axis=None)
         return nodes
 
     def _weight_LGL(self, n):
-        """ Legendre-Gauss-Lobatto(LGL) weights."""
+        """Legendre-Gauss-Lobatto(LGL) weights."""
         nodes = self._nodes_LGL(n)
         w = np.zeros(0)
         for i in range(n):
-            w = np.append(w, 2/(n*(n-1)*self._LegendreFunction(nodes[i], n-1)**2))
+            w = np.append(
+                w, 2 / (n * (n - 1) * self._LegendreFunction(nodes[i], n - 1) ** 2)
+            )
         return w
 
     def _differentiation_matrix_LGL(self, n):
-        """ Legendre-Gauss-Lobatto(LGL) differentiation matrix."""
+        """Legendre-Gauss-Lobatto(LGL) differentiation matrix."""
         tau = self._nodes_LGL(n)
         D = np.zeros((n, n))
         for i in range(n):
             for j in range(n):
                 if i != j:
-                    D[i, j] = self._LegendreFunction(tau[i], n-1) \
-                              / self._LegendreFunction(tau[j], n-1) \
-                              / (tau[i] - tau[j])
+                    D[i, j] = (
+                        self._LegendreFunction(tau[i], n - 1)
+                        / self._LegendreFunction(tau[j], n - 1)
+                        / (tau[i] - tau[j])
+                    )
                 elif i == j and i == 0:
-                    D[i, j] = -n*(n-1)*0.25
-                elif i == j and i == n-1:
-                    D[i, j] = n*(n-1)*0.25
+                    D[i, j] = -n * (n - 1) * 0.25
+                elif i == j and i == n - 1:
+                    D[i, j] = n * (n - 1) * 0.25
                 else:
                     D[i, j] = 0.0
         return D
 
     def method_LGL(self, n):
-        """ Legendre-Gauss-Lobatto Pseudospectral method
+        """Legendre-Gauss-Lobatto Pseudospectral method
         Gauss-Lobatto nodes are roots of :math:`P'_{n-1}(x)` and -1, 1.
 
         Args:
@@ -240,31 +256,31 @@ class Problem:
         div = []
         for index, node in enumerate(nodes):
             num_param = number_of_states[index] + number_of_controls[index]
-            temp = [i*(node) + prev for i in range(1, num_param + 1)]
+            temp = [i * (node) + prev for i in range(1, num_param + 1)]
             prev = temp[-1]
             div.append(temp)
         return div
 
     def _division_states(self, state, section):
-        assert section < len(self.nodes), \
-            "section argument out of own section range"
-        assert state < self.number_of_states[section], \
-            "states argument out of own states range"
-        if (state == 0):
-            if (section == 0):
+        assert section < len(self.nodes), "section argument out of own section range"
+        assert (
+            state < self.number_of_states[section]
+        ), "states argument out of own states range"
+        if state == 0:
+            if section == 0:
                 div_front = 0
             else:
-                div_front = self.div[section-1][-1]
+                div_front = self.div[section - 1][-1]
         else:
-            div_front = self.div[section][state-1]
+            div_front = self.div[section][state - 1]
         div_back = self.div[section][state]
         return div_back, div_front
 
     def _division_controls(self, control, section):
-        assert section < len(self.nodes), \
-            "section argument out of own section range"
-        assert control < self.number_of_controls[section], \
-            "controls argument out of own controls range"
+        assert section < len(self.nodes), "section argument out of own section range"
+        assert (
+            control < self.number_of_controls[section]
+        ), "controls argument out of own controls range"
         div_front = self.div[section][self.number_of_states[section] + control - 1]
         div_back = self.div[section][self.number_of_states[section] + control]
         return div_back, div_front
@@ -329,10 +345,10 @@ class Problem:
         temp = []
         for i in range(self.number_of_section):
             temp.append(self.controls(control, i))
-        return np.concatenate(temp,axis=None)
+        return np.concatenate(temp, axis=None)
 
     def time_start(self, section):
-        """ get time at section "start"
+        """get time at section "start"
 
         Args:
             section (int) : section
@@ -341,14 +357,14 @@ class Problem:
             time_start (int) : time at section start
 
         """
-        if (section == 0):
+        if section == 0:
             return self.t0
         else:
             time_start_index = range(-self.number_of_section - 1, 0)
             return self.p[time_start_index[section]] * self.unit_time
 
     def time_final(self, section):
-        """ get time at section "end"
+        """get time at section "end"
 
         Args:
             section (int) : section
@@ -361,7 +377,7 @@ class Problem:
         return self.p[time_final_index[section]] * self.unit_time
 
     def time_final_all_section(self):
-        """ get time at "end"
+        """get time at "end"
 
         Args:
             section (int) : section
@@ -384,7 +400,9 @@ class Problem:
             value (int) : value
 
         """
-        assert len(value) == self.nodes[section], "Error: value length is NOT match nodes length"
+        assert (
+            len(value) == self.nodes[section]
+        ), "Error: value length is NOT match nodes length"
         div_back, div_front = self._division_states(state, section)
         self.p[div_front:div_back] = value / self.unit_states[section][state]
 
@@ -398,7 +416,7 @@ class Problem:
         """
         div = 0
         for i in range(self.number_of_section):
-            value = value_all_section[div:div + self.nodes[i]]
+            value = value_all_section[div : div + self.nodes[i]]
             div = div + self.nodes[i]
             self.set_states(state, i, value)
 
@@ -411,7 +429,9 @@ class Problem:
             value (int) : value
 
         """
-        assert len(value) == self.nodes[section], "Error: value length is NOT match nodes length"
+        assert (
+            len(value) == self.nodes[section]
+        ), "Error: value length is NOT match nodes length"
         div_back, div_front = self._division_controls(control, section)
         self.p[div_front:div_back] = value / self.unit_controls[section][control]
 
@@ -425,12 +445,12 @@ class Problem:
         """
         div = 0
         for i in range(self.number_of_section):
-            value = value_all_section[div:div + self.nodes[i]]
+            value = value_all_section[div : div + self.nodes[i]]
             div = div + self.nodes[i]
             self.set_controls(control, i, value)
 
     def set_time_final(self, section, value):
-        """ set value to final time at specific section
+        """set value to final time at specific section
 
         Args:
             section (int) : seciton
@@ -441,7 +461,7 @@ class Problem:
         self.p[time_final_index[section]] = value / self.unit_time
 
     def set_states_bounds(self, state, section, lb, ub):
-        """ set value to bounds of state at specific section
+        """set value to bounds of state at specific section
 
         Args:
             state (int)   : state
@@ -452,11 +472,11 @@ class Problem:
         """
         lb = lb / self.unit_states[section][state] if lb is not None else None
         ub = ub / self.unit_states[section][state] if ub is not None else None
-        div_back, div_front = self._division_states(state, section)        
+        div_back, div_front = self._division_states(state, section)
         self.bounds[div_front:div_back] = [(lb, ub)] * self.nodes[section]
 
     def set_states_bounds_all_section(self, state, lb, ub):
-        """ set value to bounds of state at all sections
+        """set value to bounds of state at all sections
 
         Args:
             state (int)   : state
@@ -468,7 +488,7 @@ class Problem:
             self.set_states_bounds(state, section, lb, ub)
 
     def set_controls_bounds(self, control, section, lb, ub):
-        """ set value to bounds of control at specific section
+        """set value to bounds of control at specific section
 
         Args:
             control (int)   : control
@@ -479,11 +499,11 @@ class Problem:
         """
         lb = lb / self.unit_controls[section][control] if lb is not None else None
         ub = ub / self.unit_controls[section][control] if ub is not None else None
-        div_back, div_front = self._division_controls(control, section)        
+        div_back, div_front = self._division_controls(control, section)
         self.bounds[div_front:div_back] = [(lb, ub)] * self.nodes[section]
 
     def set_controls_bounds_all_section(self, control, lb, ub):
-        """ set value to bounds of control at all sections
+        """set value to bounds of control at all sections
 
         Args:
             control (int)   : control
@@ -495,7 +515,7 @@ class Problem:
             self.set_controls_bounds(control, section, lb, ub)
 
     def set_time_final_bounds(self, section, lb, ub):
-        """ set value to bounds of time_final at specific section
+        """set value to bounds of time_final at specific section
 
         Args:
             section (int)   : section
@@ -517,7 +537,7 @@ class Problem:
         return np.array(temp)
 
     def time_update(self):
-        """ get time array after optimization
+        """get time array after optimization
 
         Returns:
             time_update : (N,) ndarray
@@ -527,12 +547,13 @@ class Problem:
         self.time = []
         t = [0] + self.time_final_all_section()
         for i in range(self.number_of_section):
-            self.time.append((t[i+1] - t[i]) / 2.0 * self.tau[i]
-                             + (t[i+1] + t[i]) / 2.0)
+            self.time.append(
+                (t[i + 1] - t[i]) / 2.0 * self.tau[i] + (t[i + 1] + t[i]) / 2.0
+            )
         return np.concatenate([i for i in self.time])
 
     def time_knots(self):
-        """ get time at knot point
+        """get time at knot point
 
         Returns:
             time_knots (list) : time at knot point
@@ -541,7 +562,7 @@ class Problem:
         return [0] + self.time_final_all_section()
 
     def index_states(self, state, section, index=None):
-        """ get index of state at specific section
+        """get index of state at specific section
 
         Args:
             state (int) : state
@@ -552,19 +573,19 @@ class Problem:
             index_states (int) : index of states
         """
         div_back, div_front = self._division_states(state, section)
-        if (index is None):
+        if index is None:
             return div_front
         assert index < div_back - div_front, "Error, index out of range"
-        if (index < 0):
+        if index < 0:
             index = div_back - div_front + index
         return div_front + index
 
     def index_controls(self, control, section, index=None):
         div_back, div_front = self._division_controls(control, section)
-        if (index is None):
+        if index is None:
             return div_front
         assert index < div_back - div_front, "Error, index out of range"
-        if (index < 0):
+        if index < 0:
             index = div_back - div_front + index
         return div_front + index
 
@@ -577,8 +598,9 @@ class Problem:
     UNIT SCALING ZONE
     ===========================
     """
+
     def set_unit_states(self, state, section, value):
-        """ set a canonical unit value to the state at a specific section
+        """set a canonical unit value to the state at a specific section
 
         Args:
             state (int) : state
@@ -589,7 +611,7 @@ class Problem:
         self.unit_states[section][state] = value
 
     def set_unit_states_all_section(self, state, value):
-        """ set a canonical unit value to the state at all sections
+        """set a canonical unit value to the state at all sections
 
         Args:
             state (int) : state
@@ -600,7 +622,7 @@ class Problem:
             self.set_unit_states(state, i, value)
 
     def set_unit_controls(self, control, section, value):
-        """ set a canonical unit value to the control at a specific section
+        """set a canonical unit value to the control at a specific section
 
         Args:
             control (int) : control
@@ -611,7 +633,7 @@ class Problem:
         self.unit_controls[section][control] = value
 
     def set_unit_controls_all_section(self, control, value):
-        """ set a canonical unit value to the control at all sections
+        """set a canonical unit value to the control at all sections
 
         Args:
             control (int) : control
@@ -622,7 +644,7 @@ class Problem:
             self.set_unit_controls(control, i, value)
 
     def set_unit_time(self, value):
-        """ set a canonical unit value to the time
+        """set a canonical unit value to the time
 
         Args:
             value (float) : value
@@ -632,12 +654,14 @@ class Problem:
         self.time_init = list(time_init)
         self.time = []
         for index, node in enumerate(self.nodes):
-            self.time.append((time_init[index+1] - time_init[index]) / 2.0 * self.tau[index]
-                             + (time_init[index+1] + time_init[index]) / 2.0)
+            self.time.append(
+                (time_init[index + 1] - time_init[index]) / 2.0 * self.tau[index]
+                + (time_init[index + 1] + time_init[index]) / 2.0
+            )
         self.t0 = time_init[0]
         self.time_all_section = np.concatenate([i for i in self.time])
         for section in range(self.number_of_section):
-            self.set_time_final(section, time_init[section+1] * value)
+            self.set_time_final(section, time_init[section + 1] * value)
 
     """ ==============================
     """
@@ -647,8 +671,9 @@ class Problem:
 
     """ ==============================
     """
+
     def solve(self, obj, display_func=_dummy_func, **options):
-        """ solve NLP
+        """solve NLP
 
         Args:
             obj (object instance) : instance
@@ -669,7 +694,7 @@ class Problem:
         assert self.inequality is not None, "It must be set inequality function"
 
         def equality_add(equality_func, obj):
-            """ add pseudospectral method conditions to equality function.
+            """add pseudospectral method conditions to equality function.
             collocation point condition and knotting condition.
             """
             result = [self.equality(self, obj)]
@@ -688,19 +713,22 @@ class Problem:
 
             # knotting condition
             for knot in range(self.number_of_section - 1):
-                if (self.number_of_states[knot] != self.number_of_states[knot + 1]):
+                if self.number_of_states[knot] != self.number_of_states[knot + 1]:
                     continue  # if states are not continuous on knot, knotting condition skip
                 for state in range(self.number_of_states[knot]):
-                    param_prev = self.states(state, knot) / self.unit_states[knot][state]
-                    param_post = self.states(state, knot + 1) / self.unit_states[knot][state]
-                    if (self.knot_states_smooth[knot]):
+                    param_prev = (
+                        self.states(state, knot) / self.unit_states[knot][state]
+                    )
+                    param_post = (
+                        self.states(state, knot + 1) / self.unit_states[knot][state]
+                    )
+                    if self.knot_states_smooth[knot]:
                         result.append(param_prev[-1] - param_post[0])
 
             return np.concatenate(result, axis=None)
 
         def cost_add(cost_func, obj):
-            """Combining nonintegrated function and integrated function.
-            """
+            """Combining nonintegrated function and integrated function."""
             not_integrated = self.cost(self, obj)
             if self.running_cost is None:
                 return not_integrated
@@ -713,6 +741,7 @@ class Problem:
             def for_solver(p, arg0, arg1):
                 self.p = p
                 return func(arg0, arg1)
+
             return for_solver
 
         # def wrap_for_solver(func, *args):
@@ -721,14 +750,26 @@ class Problem:
         #         return func(*args)
         #     return for_solver
 
-        cons = ({'type': 'eq',
-                 'fun': wrap_for_solver(equality_add, self.equality, obj),
-                'args': (self, obj,)},
-                {'type': 'ineq',
-                 'fun': wrap_for_solver(self.inequality, self, obj),
-                 'args': (self, obj,)})
+        cons = (
+            {
+                "type": "eq",
+                "fun": wrap_for_solver(equality_add, self.equality, obj),
+                "args": (
+                    self,
+                    obj,
+                ),
+            },
+            {
+                "type": "ineq",
+                "fun": wrap_for_solver(self.inequality, self, obj),
+                "args": (
+                    self,
+                    obj,
+                ),
+            },
+        )
 
-        if (self.cost_derivative is None):
+        if self.cost_derivative is None:
             jac = None
         else:
             jac = wrap_for_solver(self.cost_derivative, self, obj)
@@ -737,28 +778,29 @@ class Problem:
         maxiter = options.setdefault("maxiter", 25)
 
         while self.iterator < self.maxIterator:
-            print("---- iteration : {0} ----".format(self.iterator+1))
-            opt = optimize.minimize(wrap_for_solver(cost_add, self.cost, obj),
-                                    self.p,
-                                    args=(self, obj),
-                                    bounds=self.bounds,
-                                    constraints=cons,
-                                    jac=jac,
-                                    method='SLSQP',
-                                    options={"disp": True,
-                                             "maxiter": maxiter,
-                                             "ftol": ftol})
+            print("---- iteration : {0} ----".format(self.iterator + 1))
+            opt = optimize.minimize(
+                wrap_for_solver(cost_add, self.cost, obj),
+                self.p,
+                args=(self, obj),
+                bounds=self.bounds,
+                constraints=cons,
+                jac=jac,
+                method="SLSQP",
+                options={"disp": True, "maxiter": maxiter, "ftol": ftol},
+            )
             print(opt.message)
             display_func()
             print("")
-            if not(opt.status):
+            if not (opt.status):
                 break
             self.iterator += 1
+
     """ ==============================
     """
 
     def solve_pos(self, obj, display_func=_dummy_func, **options):
-        """ solve NLP using pyoptsparse
+        """solve NLP using pyoptsparse
 
         Args:
             obj (object instance) : instance
@@ -779,7 +821,7 @@ class Problem:
         assert self.inequality is not None, "It must be set inequality function"
 
         def equality_add(equality_func, obj):
-            """ add pseudospectral method conditions to equality function.
+            """add pseudospectral method conditions to equality function.
             collocation point condition and knotting condition.
             """
             result = [self.equality(self, obj)]
@@ -798,19 +840,22 @@ class Problem:
 
             # knotting condition
             for knot in range(self.number_of_section - 1):
-                if (self.number_of_states[knot] != self.number_of_states[knot + 1]):
+                if self.number_of_states[knot] != self.number_of_states[knot + 1]:
                     continue  # if states are not continuous on knot, knotting condition skip
                 for state in range(self.number_of_states[knot]):
-                    param_prev = self.states(state, knot) / self.unit_states[knot][state]
-                    param_post = self.states(state, knot + 1) / self.unit_states[knot][state]
-                    if (self.knot_states_smooth[knot]):
+                    param_prev = (
+                        self.states(state, knot) / self.unit_states[knot][state]
+                    )
+                    param_post = (
+                        self.states(state, knot + 1) / self.unit_states[knot][state]
+                    )
+                    if self.knot_states_smooth[knot]:
                         result.append(param_prev[-1] - param_post[0])
 
             return np.concatenate(result, axis=None)
 
         def cost_add(cost_func, obj):
-            """Combining nonintegrated function and integrated function.
-            """
+            """Combining nonintegrated function and integrated function."""
             not_integrated = self.cost(self, obj)
             if self.running_cost is None:
                 return not_integrated
@@ -823,6 +868,7 @@ class Problem:
             def for_solver(p, arg0, arg1):
                 self.p = p
                 return func(arg0, arg1)
+
             return for_solver
 
         # def wrap_for_solver(func, *args):
@@ -831,14 +877,26 @@ class Problem:
         #         return func(*args)
         #     return for_solver
 
-        cons = ({'type': 'eq',
-                 'fun': wrap_for_solver(equality_add, self.equality, obj),
-                'args': (self, obj,)},
-                {'type': 'ineq',
-                 'fun': wrap_for_solver(self.inequality, self, obj),
-                 'args': (self, obj,)})
+        cons = (
+            {
+                "type": "eq",
+                "fun": wrap_for_solver(equality_add, self.equality, obj),
+                "args": (
+                    self,
+                    obj,
+                ),
+            },
+            {
+                "type": "ineq",
+                "fun": wrap_for_solver(self.inequality, self, obj),
+                "args": (
+                    self,
+                    obj,
+                ),
+            },
+        )
 
-        if (self.cost_derivative is None):
+        if self.cost_derivative is None:
             jac = None
         else:
             jac = wrap_for_solver(self.cost_derivative, self, obj)
@@ -865,20 +923,29 @@ class Problem:
         if self.bounds is not None:
             var_lower = [b[0] for b in self.bounds]
             var_upper = [b[1] for b in self.bounds]
-        optProb.addVarGroup("xvars", len(self.p), "c", value=self.p, lower=var_lower, upper=var_upper)
-        optProb.addConGroup("eqcon", len(equality_add(self.equality, obj)), lower=0.0, upper=0.0)
-        optProb.addConGroup("ineqcon", len(self.inequality(self, obj)), lower=0.0, upper=None)
+        optProb.addVarGroup(
+            "xvars", len(self.p), "c", value=self.p, lower=var_lower, upper=var_upper
+        )
+        optProb.addConGroup(
+            "eqcon", len(equality_add(self.equality, obj)), lower=0.0, upper=0.0
+        )
+        optProb.addConGroup(
+            "ineqcon", len(self.inequality(self, obj)), lower=0.0, upper=None
+        )
         optProb.addObj("obj")
 
         # opt = pos.SLSQP(options={"MAXIT": maxiter, "ACC": ftol})
         if solver == "SLSQP":
-            opt = SLSQP(options={"IPRINT": 1, "MAXIT": maxiter, "ACC":ftol})
+            opt = SLSQP(options={"IPRINT": 1, "MAXIT": maxiter, "ACC": ftol})
         else:
-            opt = IPOPT(options={"linear_solver":"pardisomkl",
-                                "print_level": 5,
-                                "tol": ftol,
-                                "max_iter": maxiter
-                                })
+            opt = IPOPT(
+                options={
+                    "linear_solver": "pardisomkl",
+                    "print_level": 5,
+                    "tol": ftol,
+                    "max_iter": maxiter,
+                }
+            )
         sol = opt(optProb, sens="FD", sensMode="pgc")
         self.p = sol.xStar["xvars"]
         print(sol.optInform["text"])
@@ -887,33 +954,47 @@ class Problem:
         print(sol.optInform["text"])
         display_func()
         print("")
-            
+
     """ ==============================
     """
 
-    def __init__(self, time_init, nodes, number_of_states, number_of_controls,
-                 maxIterator = 100, method="LGL"):
-        assert isinstance(time_init, list), \
-            "error: time_init is not list"
-        assert isinstance(nodes, list), \
-            "error: nodes are not list"
-        assert isinstance(number_of_states, list), \
-            "error: number of states are not list"
-        assert isinstance(number_of_controls, list), \
-            "error: number of controls are not list"
-        assert len(time_init) == len(nodes) + 1, \
-            "error: time_init length is not match nodes length"
-        assert len(nodes) == len(number_of_states), \
-            "error: nodes length is not match states length"
-        assert len(nodes) == len(number_of_controls), \
-            "error: nodes length is not match controls length"
+    def __init__(
+        self,
+        time_init,
+        nodes,
+        number_of_states,
+        number_of_controls,
+        maxIterator=100,
+        method="LGL",
+    ):
+        assert isinstance(time_init, list), "error: time_init is not list"
+        assert isinstance(nodes, list), "error: nodes are not list"
+        assert isinstance(
+            number_of_states, list
+        ), "error: number of states are not list"
+        assert isinstance(
+            number_of_controls, list
+        ), "error: number of controls are not list"
+        assert (
+            len(time_init) == len(nodes) + 1
+        ), "error: time_init length is not match nodes length"
+        assert len(nodes) == len(
+            number_of_states
+        ), "error: nodes length is not match states length"
+        assert len(nodes) == len(
+            number_of_controls
+        ), "error: nodes length is not match controls length"
         self.nodes = nodes
         self.number_of_states = number_of_states
         self.number_of_controls = number_of_controls
-        self.div = self._make_param_division(nodes, number_of_states, number_of_controls)
+        self.div = self._make_param_division(
+            nodes, number_of_states, number_of_controls
+        )
         self.number_of_section = len(self.nodes)
         self.number_of_param = np.array(number_of_states) + np.array(number_of_controls)
-        self.number_of_variables = sum(self.number_of_param * nodes) + self.number_of_section
+        self.number_of_variables = (
+            sum(self.number_of_param * nodes) + self.number_of_section
+        )
         self.tau = []
         self.w = []
         self.D = []
@@ -922,8 +1003,10 @@ class Problem:
             self.tau.append(self._nodes_LGL(node))
             self.w.append(self._weight_LGL(node))
             self.D.append(self._differentiation_matrix_LGL(node))
-            self.time.append((time_init[index+1] - time_init[index]) / 2.0 * self.tau[index]
-                             + (time_init[index+1] + time_init[index]) / 2.0)
+            self.time.append(
+                (time_init[index + 1] - time_init[index]) / 2.0 * self.tau[index]
+                + (time_init[index + 1] + time_init[index]) / 2.0
+            )
         self.maxIterator = maxIterator
         self.iterator = 0
         self.time_init = time_init
@@ -934,8 +1017,8 @@ class Problem:
         self.unit_controls = []
         self.unit_time = 1.0
         for i in range(self.number_of_section):
-            self.unit_states.append([1.0]*self.number_of_states[i])
-            self.unit_controls.append([1.0]*self.number_of_controls[i])
+            self.unit_states.append([1.0] * self.number_of_states[i])
+            self.unit_controls.append([1.0] * self.number_of_controls[i])
         # ====
         self.p = np.zeros(self.number_of_variables, dtype=float)
         self.bounds = [(None, None)] * self.number_of_variables
@@ -952,9 +1035,9 @@ class Problem:
         self.inequality = None
         # ====
         for section in range(self.number_of_section):
-            self.set_time_final(section, time_init[section+1])
+            self.set_time_final(section, time_init[section + 1])
             self.dynamics.append(None)
-        for section in range(self.number_of_section-1):
+        for section in range(self.number_of_section - 1):
             self.knot_states_smooth.append(True)
 
     def __repr__(self):
@@ -977,7 +1060,7 @@ class Problem:
         return s
 
     def to_csv(self, filename="OpenGoddard_output.csv", delimiter=","):
-        """ output states, controls and time to csv file
+        """output states, controls and time to csv file
 
         Args:
             filename (str, optional) : csv filename
@@ -995,10 +1078,10 @@ class Problem:
             header += "control%d, " % (i)
             result = np.vstack((result, self.controls_all_section(i)))
         np.savetxt(filename, result.T, delimiter=delimiter, header=header)
-        print("Completed saving \"%s\"" % (filename))
+        print('Completed saving "%s"' % (filename))
 
     def plot(self, title_comment=""):
-        """ plot inner variables that to be optimized
+        """plot inner variables that to be optimized
 
         Args:
             title_comment (str) : string for title
@@ -1011,7 +1094,7 @@ class Problem:
         plt.ylabel("value")
         for section in range(self.number_of_section):
             for line in self.div[section]:
-                plt.axvline(line, color="C%d" % ((section+1) % 6), alpha=0.5)
+                plt.axvline(line, color="C%d" % ((section + 1) % 6), alpha=0.5)
         plt.grid()
 
 
@@ -1023,7 +1106,7 @@ class Guess:
 
     @classmethod
     def zeros(cls, time):
-        """ return zeros that array size is same as time length
+        """return zeros that array size is same as time length
 
         Args:
             time (array_like) :
@@ -1035,7 +1118,7 @@ class Guess:
 
     @classmethod
     def constant(cls, time, const):
-        """ return constant values that array size is same as time length
+        """return constant values that array size is same as time length
 
         Args:
             time (array_like) :
@@ -1049,7 +1132,7 @@ class Guess:
 
     @classmethod
     def linear(cls, time, y0, yf):
-        """ return linear function values that array size is same as time length
+        """return linear function values that array size is same as time length
 
         Args:
             time (array_like) : time
@@ -1067,7 +1150,7 @@ class Guess:
 
     @classmethod
     def cubic(cls, time, y0, yprime0, yf, yprimef):
-        """ return cubic function values that array size is same as time length
+        """return cubic function values that array size is same as time length
 
         Args:
             time (array_like) : time
@@ -1083,16 +1166,22 @@ class Guess:
         y = np.array([y0, yprime0, yf, yprimef])
         t0 = time[0]
         tf = time[-1]
-        A = np.array([[1, t0, t0**2, t0**3], [0, 1, 2*t0, 3*t0**2],
-                      [1, tf, tf**2, tf**3], [0, 1, 2*tf, 3*tf**2]])
+        A = np.array(
+            [
+                [1, t0, t0**2, t0**3],
+                [0, 1, 2 * t0, 3 * t0**2],
+                [1, tf, tf**2, tf**3],
+                [0, 1, 2 * tf, 3 * tf**2],
+            ]
+        )
         invA = np.linalg.inv(A)
         C = invA.dot(y)
-        ys = C[0] + C[1]*time + C[2]*time**2 + C[3]*time**3
+        ys = C[0] + C[1] * time + C[2] * time**2 + C[3] * time**3
         return ys
 
     @classmethod
     def plot(cls, x, y, title="", xlabel="", ylabel=""):
-        """ plot wrappper
+        """plot wrappper
 
         Args:
             x (array_like) : array on the horizontal axis of the plot
@@ -1137,6 +1226,7 @@ class Condition(object):
         >>> return result()
 
     """
+
     def __init__(self, length=0):
         self._condition = np.zeros(length)
 
@@ -1237,8 +1327,7 @@ class Dynamics(object):
     """
 
     def __init__(self, prob, section=0):
-        """ prob is instance of OpenGoddard class
-        """
+        """prob is instance of OpenGoddard class"""
         self.section = section
         self.number_of_state = prob.number_of_states[section]
         self.unit_states = prob.unit_states
@@ -1257,12 +1346,14 @@ class Dynamics(object):
     def __call__(self):
         dx = np.zeros(0)
         for i in range(self.number_of_state):
-            temp = self.__dict__[i] * (self.unit_time / self.unit_states[self.section][i])
+            temp = self.__dict__[i] * (
+                self.unit_time / self.unit_states[self.section][i]
+            )
             dx = np.concatenate((dx, temp), axis=None)
         return dx
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     print("==== OpenGoddard test program ====")
     plt.close("all")
     plt.ion()
@@ -1369,13 +1460,13 @@ if __name__ == '__main__':
 
         Dc = 0.5 * 620 * 1.0 / 1.0
         c = 0.5 * np.sqrt(1.0 * 1.0)
-        drag = 1 * Dc * v ** 2 * np.exp(-500 * (h - 1.0) / 1.0)
-        g = 1.0 * (1.0 / h)**2
+        drag = 1 * Dc * v**2 * np.exp(-500 * (h - 1.0) / 1.0)
+        g = 1.0 * (1.0 / h) ** 2
 
         dx = np.zeros(0)
         dx0 = v
         dx1 = (T - drag) / m - g
-        dx2 = - T / c
+        dx2 = -T / c
         dx = np.concatenate((dx0, dx1, dx2), axis=None)
         return dx
 
@@ -1463,8 +1554,8 @@ if __name__ == '__main__':
     time = prob.time_update()
 
     Dc = 0.5 * 620 * 1.0 / 1.0
-    drag = 1 * Dc * v ** 2 * np.exp(-500 * (h - 1.0) / 1.0)
-    g = 1.0 * (1.0 / h)**2
+    drag = 1 * Dc * v**2 * np.exp(-500 * (h - 1.0) / 1.0)
+    g = 1.0 * (1.0 / h) ** 2
 
     plt.figure()
     plt.title("Altitude profile")

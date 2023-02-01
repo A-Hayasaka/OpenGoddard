@@ -1,6 +1,7 @@
 if __name__ == "__main__":
     import subprocess
     import os
+
     cmd_api = "sphinx-apidoc -f -o docs_sphinx/apis OpenGoddard"
     cmd_cd = "cd docs_sphinx"
     cmd_make = "make html"
