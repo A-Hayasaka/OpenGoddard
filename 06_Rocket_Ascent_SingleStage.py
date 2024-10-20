@@ -186,7 +186,7 @@ def display_func():
     print("max altitude: {0:.5f}".format(R[-1] - obj.Re))
 
 
-prob.solve(obj, display_func, ftol=1e-12)
+prob.solve(obj, display_func, ftol=1e-6)
 
 # ========================
 # Post Process

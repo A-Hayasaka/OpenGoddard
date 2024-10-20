@@ -165,7 +165,7 @@ def display_func():
     print("tf: {0:.5f}".format(tf))
 
 
-prob.solve(obj, display_func, ftol=1e-12)
+prob.solve(obj, display_func, ftol=1e-5, maxiter=10000)
 
 # ========================
 # Post Process
