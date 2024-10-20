@@ -180,4 +180,4 @@ plt.gca().invert_yaxis()
 if flag_savefig:
     plt.savefig(savefig_dir + "trajectry" + ".png")
 
-plt.show()
+#plt.show()

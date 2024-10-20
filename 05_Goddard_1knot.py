@@ -149,7 +149,7 @@ T_init = np.hstack((T_init0, T_init1))
 # Guess.plot(prob.time_all_section, T_init, "Thrust Guess", "time", "Thrust")
 # if(flag_savefig):plt.savefig(savefig_file + "guess_thrust" + ".png")
 
-plt.show()
+#plt.show()
 
 # ========================
 # Substitution initial value to parameter vector to be optimized
@@ -241,4 +241,4 @@ plt.legend(loc="best")
 if flag_savefig:
     plt.savefig(savefig_file + "force" + ".png")
 
-plt.show()
+#plt.show()

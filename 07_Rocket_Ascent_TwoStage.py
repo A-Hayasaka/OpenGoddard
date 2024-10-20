@@ -171,7 +171,7 @@ T_init = Guess.cubic(
 # Guess.plot(prob.time_all_section, T_init, "Thrust Guess", "time", "Thrust")
 # if(flag_savefig):plt.savefig(savefig_file + "guess_mass" + ".png")
 
-plt.show()
+#plt.show()
 
 # ========================
 # Substitution initial value to parameter vector to be optimized
@@ -273,4 +273,4 @@ plt.legend(loc="best")
 if flag_savefig:
     plt.savefig(savefig_file + "force" + ".png")
 
-plt.show()
+#plt.show()

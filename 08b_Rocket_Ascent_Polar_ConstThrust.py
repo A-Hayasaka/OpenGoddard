@@ -120,7 +120,7 @@ M_init = Guess.cubic(prob.time_all_section, 1.0, 0.0, 0.5, 0.0)
 # thrust angle profile
 Gamma_init = Guess.linear(prob.time_all_section, 0.001, 0.001)
 
-# plt.show()
+# #plt.show()
 
 # ========================
 # Substitution initial value to parameter vector to be optimized
@@ -216,4 +216,4 @@ plt.legend(loc="best")
 if flag_savefig:
     plt.savefig(savefig_file + "control" + ".png")
 
-plt.show()
+#plt.show()
