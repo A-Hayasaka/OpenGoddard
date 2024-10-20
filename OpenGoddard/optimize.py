@@ -32,7 +32,6 @@ import numpy as np
 from scipy import special
 from scipy import interpolate
 from scipy import optimize
-from pyoptsparse import SLSQP, IPOPT, Optimization
 import matplotlib.pyplot as plt
 
 
@@ -674,6 +673,28 @@ class Problem:
 
     def solve(self, obj, display_func=_dummy_func, **options):
         """solve NLP
+        
+        Args:
+            obj (object instance) : instance
+            display_func (function) : function to display intermediate values
+            ftol (float, optional) : Precision goal for the value of f in the
+                stopping criterion, (default: 1e-6)
+            maxiter (int, optional) : Maximum number of iterations., (default : 25)
+
+        Examples:
+            "prob" is Problem class's instance.
+
+            >>> prob.solve(obj, display_func, ftol=1e-12)
+
+        """
+        try:
+            from pyoptsparse import Optimization
+            return self.solve_pos(obj, display_func, **options)
+        except ImportError:
+            return self.solve_scipy(obj, display_func, **options)
+
+    def solve_scipy(self, obj, display_func=_dummy_func, **options):
+        """solve NLP
 
         Args:
             obj (object instance) : instance
@@ -815,6 +836,20 @@ class Problem:
             >>> prob.solve(obj, display_func, ftol=1e-12)
 
         """
+        from pyoptsparse import Optimization
+
+        default_solver = None
+        try:
+            from pyoptsparse import SNOPT
+            default_solver = "SNOPT"
+        except ImportError:
+            try:
+                from pyoptsparse import IPOPT
+                default_solver = "IPOPT"
+            except ImportError:
+                from pyoptsparse import SLSQP
+                default_solver = "SLSQP"
+
         assert len(self.dynamics) != 0, "It must be set dynamics"
         assert self.cost is not None, "It must be set cost function"
         assert self.equality is not None, "It must be set equality function"
@@ -902,8 +937,8 @@ class Problem:
             jac = wrap_for_solver(self.cost_derivative, self, obj)
 
         ftol = options.setdefault("ftol", 1e-6)
-        maxiter = options.setdefault("maxiter", 500)
-        solver = options.setdefault("solver", "IPOPT")
+        maxiter = options.setdefault("maxiter", 2000)
+        solver = options.setdefault("solver", default_solver)
 
         def objfunc(xdict):
             x = xdict["xvars"]
@@ -937,13 +972,22 @@ class Problem:
         # opt = pos.SLSQP(options={"MAXIT": maxiter, "ACC": ftol})
         if solver == "SLSQP":
             opt = SLSQP(options={"IPRINT": 1, "MAXIT": maxiter, "ACC": ftol})
-        else:
+        elif solver == "IPOPT":
             opt = IPOPT(
                 options={
-                    "linear_solver": "pardisomkl",
+                    "linear_solver": "mumps",
                     "print_level": 5,
                     "tol": ftol,
                     "max_iter": maxiter,
+                }
+            )
+        elif solver == "SNOPT":
+            opt = SNOPT(
+                options={
+                    "Major optimality tolerance": ftol,
+                    "Major feasibility tolerance": ftol,
+                    "Minor feasibility tolerance": ftol,
+                    "Iterations limit": maxiter
                 }
             )
         sol = opt(optProb, sens="FD", sensMode="pgc")
