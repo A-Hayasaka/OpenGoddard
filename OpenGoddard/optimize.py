@@ -310,9 +310,7 @@ class Problem:
                 1-D array of all section state
 
         """
-        temp = []
-        for i in range(self.number_of_section):
-            temp.append(self.states(state, i))
+        temp = [self.states(state, section) for section in range(self.number_of_section)]
         return np.concatenate(temp, axis=None)
 
     def controls(self, control, section):
@@ -341,10 +339,8 @@ class Problem:
                 1-D array of all section control
 
         """
-        temp = []
-        for i in range(self.number_of_section):
-            temp.append(self.controls(control, i))
-        return np.concatenate(temp, axis=None)
+        temp = [self.controls(control, section) for section in range(self.number_of_section)]
+        return np.concatenate(temp,axis=None)
 
     def time_start(self, section):
         """get time at section "start"
@@ -353,7 +349,7 @@ class Problem:
             section (int) : section
 
         Returns:
-            time_start (int) : time at section start
+            time_start (float) : time at section start
 
         """
         if section == 0:
@@ -369,7 +365,7 @@ class Problem:
             section (int) : section
 
         Returns:
-            time_final (int) : time at section end
+            time_final (float) : time at section end
 
         """
         time_final_index = range(-self.number_of_section, 0)
@@ -382,13 +378,13 @@ class Problem:
             section (int) : section
 
         Returns:
-            time_final_all_section (int) : time at end
+            time_final_all_section (list) : time at end
 
         """
-        tf = []
-        for section in range(self.number_of_section):
-            tf = tf + [self.time_final(section)]
-        return tf
+        return [
+            self.time_final(section)
+            for section in range(self.number_of_section)
+        ]
 
     def set_states(self, state, section, value):
         """set value to state at specific section
@@ -721,30 +717,22 @@ class Problem:
             result = [self.equality(self, obj)]
 
             # collation point condition
-            for i in range(self.number_of_section):
-                D = self.D
-                derivative = []
-                for j in range(self.number_of_states[i]):
-                    state_temp = self.states(j, i) / self.unit_states[i][j]
-                    derivative.append(D[i].dot(state_temp))
-                tix = self.time_start(i) / self.unit_time
-                tfx = self.time_final(i) / self.unit_time
-                dx = self.dynamics[i](self, obj, i)
+            for section in range(self.number_of_section):
+                state_temp = self.p_states[section].T
+                derivative = (self.D[section].dot(state_temp)).T
+                tix = self.time_start(section) / self.unit_time
+                tfx = self.time_final(section) / self.unit_time
+                dx = self.dynamics[section](self, obj, section)
                 result.append(np.array(derivative).ravel() - (tfx - tix) / 2.0 * dx)
 
             # knotting condition
             for knot in range(self.number_of_section - 1):
                 if self.number_of_states[knot] != self.number_of_states[knot + 1]:
                     continue  # if states are not continuous on knot, knotting condition skip
-                for state in range(self.number_of_states[knot]):
-                    param_prev = (
-                        self.states(state, knot) / self.unit_states[knot][state]
-                    )
-                    param_post = (
-                        self.states(state, knot + 1) / self.unit_states[knot][state]
-                    )
-                    if self.knot_states_smooth[knot]:
-                        result.append(param_prev[-1] - param_post[0])
+                if (self.knot_states_smooth[knot]):
+                    param_prev = self.p_states[knot][:,-1]
+                    param_post = self.p_states[knot+1][:,0]
+                    result.append(param_prev - param_post)
 
             return np.concatenate(result, axis=None)
 
@@ -877,15 +865,10 @@ class Problem:
             for knot in range(self.number_of_section - 1):
                 if self.number_of_states[knot] != self.number_of_states[knot + 1]:
                     continue  # if states are not continuous on knot, knotting condition skip
-                for state in range(self.number_of_states[knot]):
-                    param_prev = (
-                        self.states(state, knot) / self.unit_states[knot][state]
-                    )
-                    param_post = (
-                        self.states(state, knot + 1) / self.unit_states[knot][state]
-                    )
-                    if self.knot_states_smooth[knot]:
-                        result.append(param_prev[-1] - param_post[0])
+                if (self.knot_states_smooth[knot]):
+                    param_prev = self.p_states[knot][:,-1]
+                    param_post = self.p_states[knot+1][:,0]
+                    result.append(param_prev - param_post)
 
             return np.concatenate(result, axis=None)
 
@@ -1279,7 +1262,7 @@ class Condition(object):
     """
 
     def __init__(self, length=0):
-        self._condition = np.zeros(length)
+        self._condition = []
 
     # def add(self, *args):
     #     for arg in args:
@@ -1291,7 +1274,10 @@ class Condition(object):
         Args:
             arg (array_like) : condition
         """
-        self._condition = np.concatenate((self._condition, arg / unit), axis=None)
+        if hasattr(arg, "__iter__"):
+            self._condition.extend(arg / unit)
+        else:
+            self._condition.append(arg / unit)
 
     def equal(self, arg1, arg2, unit=1.0):
         """add equation constraint condition in Problem equality function
@@ -1395,12 +1381,12 @@ class Dynamics(object):
         self.__dict__[key] = value
 
     def __call__(self):
-        dx = np.zeros(0)
-        for i in range(self.number_of_state):
-            temp = self.__dict__[i] * (
-                self.unit_time / self.unit_states[self.section][i]
-            )
-            dx = np.concatenate((dx, temp), axis=None)
+
+        temp = [
+            self.__dict__[state] * (self.unit_time / self.unit_states[self.section][state])
+            for state in range(self.number_of_state)
+        ]
+        dx = np.concatenate(temp, axis=None)
         return dx
 
 
