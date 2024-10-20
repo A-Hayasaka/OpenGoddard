@@ -400,7 +400,7 @@ def display_func():
     print("final time  : {0:.3f}".format(tf))
 
 
-prob.solve(obj, display_func, ftol=1e-8)
+prob.solve(obj, display_func, ftol=1e-6)
 
 # ========================
 # Post Process

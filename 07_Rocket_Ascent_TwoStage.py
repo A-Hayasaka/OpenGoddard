@@ -206,7 +206,7 @@ def display_func():
 
 
 # prob.solve(obj, display_func, options = {'ftol':1e-15})
-prob.solve(obj, display_func, ftol=1e-10)
+prob.solve(obj, display_func, ftol=1e-6)
 
 # ========================
 # Post Process
