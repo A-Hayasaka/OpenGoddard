@@ -994,7 +994,14 @@ class Problem:
         self.p = sol.xStar["xvars"]
         print(sol.optInform["text"])
         print("fun: {0}".format(sol.fStar))
-        print("time: {0}".format(sol.optTime))
+        print("userObjCalls: {0}".format(sol.userObjCalls))
+        print("userSensCalls: {0}".format(sol.userSensCalls))
+        print("time            : {:.6f}".format(sol.optTime))
+        print("  userObjTime   : {:.6f}".format(sol.userObjTime))
+        print("  userSensTime  : {:.6f}".format(sol.userSensTime))
+        print("  interfaceTime : {:.6f}".format(sol.interfaceTime))
+        print("  optCodeTime   : {:.6f}".format(sol.optCodeTime))
+        
         print(sol.optInform["text"])
         display_func()
         print("")
