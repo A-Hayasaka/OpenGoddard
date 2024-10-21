@@ -50,7 +50,6 @@ class Problem:
         number_of_states (int) : number of states.
         number_of_controls (int) : number of controls
         number_of_section (int) : number of section
-        number_of_param (int) : number of inner variables
         div (list) : division point of inner variables
         tau : Gauss nodes
         w : weights of Gaussian quadrature
@@ -80,6 +79,24 @@ class Problem:
         Legendre, Derivative = special.lpn(n, x)
         return Derivative[-1]
 
+    def _LagrangePolynominalDerivative(self, x_nodes, n, t):
+
+        M = len(x_nodes)
+        den = 1.0
+        for i in range(M):
+            if i!=n:
+                den = den * (x_nodes[n] - x_nodes[i])
+        num = 0.0
+        for j in range(M):
+            num_j = 1.0
+            if j!=n:
+                for i in range(M):
+                    if i!=n and i!=j:
+                        num_j = num_j * (t - x_nodes[i])
+                num = num + num_j
+        return num / den
+
+
     def _nodes_LG(self, n):
         """Return Gauss-Legendre nodes."""
         nodes, weight = special.p_roots(n)
@@ -92,43 +109,24 @@ class Problem:
 
     def _differentiation_matrix_LG(self, n):
         tau = self._nodes_LG(n)
-        D = np.zeros((n, n))
+        tau = np.concatenate((-1.0, tau), axis=None)
+        D = np.zeros((n, n+1))
         for i in range(n):
-            for j in range(n):
-                if i != j:
-                    D[i, j] = (
-                        self._LegendreDerivative(tau[i], n)
-                        / self._LegendreDerivative(tau[j], n)
-                        / (tau[i] - tau[j])
-                    )
-                else:
-                    D[i, j] = tau[i] / (1 - tau[i] ** 2)
+            for j in range(n+1):
+                D[i, j] = self._LagrangePolynominalDerivative(tau, j, tau[i+1])
         return D
 
-    def method_LG(self, n):
-        """Legendre-Gauss Pseudospectral method
-        Gauss nodes are roots of :math:`P_n(x)`.
-
-        Args:
-            n (int) : number of nodes
-
-        Returns:
-            ndarray, ndarray, ndarray : nodes, weight, differentiation_matrix
-
-        """
-        nodes, weight = special.p_roots(n)
-        D = _differentiation_matrix_LG(n)
-        return nodes, weight, D
-
-    def _nodes_LGR(self, n):
+    def _nodes_LGR(self, n, reverse=True):
         """Return Gauss-Radau nodes."""
         roots, weight = special.j_roots(n - 1, 0, 1)
         nodes = np.concatenate((-1, roots), axis=None)
+        if reverse:
+            nodes = np.sort(-nodes)
         return nodes
 
-    def _weight_LGR(self, n):
+    def _weight_LGR(self, n, reverse=True):
         """Return Gauss-Legendre weight."""
-        nodes = self._nodes_LGR(n)
+        nodes = self._nodes_LGR(n, reverse)
         w = np.zeros(0)
         for i in range(n):
             w = np.append(
@@ -137,40 +135,20 @@ class Problem:
             )
         return w
 
-    def _differentiation_matrix_LGR(self, n):
-        tau = self._nodes_LGR(n)
-        D = np.zeros((n, n))
+    def _differentiation_matrix_LGR(self, n, reverse=True):
+        tau = self._nodes_LGR(n, reverse)
+        if reverse:
+            tau = np.concatenate((-1.0, tau), axis=None)
+        else:
+            tau = np.concatenate((tau, 1.0), axis=None)
+        D = np.zeros((n, n+1))
         for i in range(n):
-            for j in range(n):
-                if i != j:
-                    D[i, j] = (
-                        self._LegendreFunction(tau[i], n - 1)
-                        / self._LegendreFunction(tau[j], n - 1)
-                        * (1 - tau[j])
-                        / (1 - tau[i])
-                        / (tau[i] - tau[j])
-                    )
-                elif i == j and i == 0:
-                    D[i, j] = -(n - 1) * (n + 1) * 0.25
+            for j in range(n+1):
+                if reverse:
+                    D[i, j] = self._LagrangePolynominalDerivative(tau, j, tau[i+1])
                 else:
-                    D[i, j] = 1 / (2 * (1 - tau[i]))
+                    D[i, j] = self._LagrangePolynominalDerivative(tau, j, tau[i])
         return D
-
-    def method_LGR(self, n):
-        """Legendre-Gauss-Radau Pseudospectral method
-        Gauss-Radau nodes are roots of :math:`P_n(x) + P_{n-1}(x)`.
-
-        Args:
-            n (int) : number of nodes
-
-        Returns:
-            ndarray, ndarray, ndarray : nodes, weight, differentiation_matrix
-
-        """
-        nodes = _nodes_LGR(n)
-        weight = _weight_LGR(n)
-        D = _differentiation_matrix_LGR(n)
-        return nodes, weight, D
 
     def _nodes_LGL_old(self, n):
         """Return Legendre-Gauss-Lobatto nodes.
@@ -228,34 +206,42 @@ class Problem:
                     D[i, j] = 0.0
         return D
 
-    def method_LGL(self, n):
-        """Legendre-Gauss-Lobatto Pseudospectral method
-        Gauss-Lobatto nodes are roots of :math:`P'_{n-1}(x)` and -1, 1.
+    def PS_params(self, n, mode="LGL"):
+        """Pseudospectral method
 
         Args:
             n (int) : number of nodes
+            mode (str) : collocation method (default: "LGL")
+                LG(Legendre-Gauss): Gauss nodes are roots of :math:`P_n(x)`.
+                LGR(Legendre-Gauss-Radau): Gauss-Radau nodes are roots of :math:`P_n(x) + P_{n-1}(x)`.
+                LGL(Legendre-Gauss-Lobatto): Gauss-Lobatto nodes are roots of :math:`P'_{n-1}(x)` and -1, 1.
+
 
         Returns:
             ndarray, ndarray, ndarray : nodes, weight, differentiation_matrix
 
-        References:
-            Fariba Fahroo and I. Michael Ross. "Advances in Pseudospectral Methods
-            for Optimal Control", AIAA Guidance, Navigation and Control Conference
-            and Exhibit, Guidance, Navigation, and Control and Co-located Conferences
-            http://dx.doi.org/10.2514/6.2008-7309
-
         """
-        nodes = _nodes_LGL(n)
-        weight = _weight_LGL(n)
-        D = _differentiation_matrix_LGL(n)
+        LGR_reverse = True
+        if mode == "LG":
+            nodes, weight = special.p_roots(n)
+            D = self._differentiation_matrix_LG(n)
+        elif mode == "LGR":
+            nodes = self._nodes_LGR(n, LGR_reverse)
+            weight = self._weight_LGR(n, LGR_reverse)
+            D = self._differentiation_matrix_LGR(n, LGR_reverse)
+        elif mode == "LGL":
+            nodes = self._nodes_LGL(n)
+            weight = self._weight_LGL(n)
+            D = self._differentiation_matrix_LGL(n)
         return nodes, weight, D
 
     def _make_param_division(self, nodes, number_of_states, number_of_controls):
         prev = 0
         div = []
         for index, node in enumerate(nodes):
-            num_param = number_of_states[index] + number_of_controls[index]
-            temp = [i * (node) + prev for i in range(1, num_param + 1)]
+            temp = [i * (node + self._is_LG_or_LGR) + prev for i in range(1, number_of_states[index] + 1)]
+            prev = temp[-1]
+            temp.extend([i * (node) + prev for i in range(1, number_of_controls[index] + 1)])
             prev = temp[-1]
             div.append(temp)
         return div
@@ -284,7 +270,7 @@ class Problem:
         div_back = self.div[section][self.number_of_states[section] + control]
         return div_back, div_front
 
-    def states(self, state, section):
+    def states(self, state, section, include_initial=False):
         """getter specify section states array
 
         Args:
@@ -297,9 +283,11 @@ class Problem:
 
         """
         div_back, div_front = self._division_states(state, section)
+        if not include_initial:
+            div_front += self._is_LG_or_LGR
         return self.p[div_front:div_back] * self.unit_states[section][state]
 
-    def states_all_section(self, state):
+    def states_all_section(self, state, include_initial=False):
         """get states array
 
         Args:
@@ -312,7 +300,7 @@ class Problem:
         """
         temp = []
         for i in range(self.number_of_section):
-            temp.append(self.states(state, i))
+            temp.append(self.states(state, i, include_initial))
         return np.concatenate(temp, axis=None)
 
     def controls(self, control, section):
@@ -400,7 +388,7 @@ class Problem:
 
         """
         assert (
-            len(value) == self.nodes[section]
+            len(value) == self.nodes[section] + self._is_LG_or_LGR
         ), "Error: value length is NOT match nodes length"
         div_back, div_front = self._division_states(state, section)
         self.p[div_front:div_back] = value / self.unit_states[section][state]
@@ -417,6 +405,8 @@ class Problem:
         for i in range(self.number_of_section):
             value = value_all_section[div : div + self.nodes[i]]
             div = div + self.nodes[i]
+            if self._is_LG_or_LGR > 0:
+                value = np.concatenate([value[0], value], axis=None)
             self.set_states(state, i, value)
 
     def set_controls(self, control, section, value):
@@ -472,7 +462,7 @@ class Problem:
         lb = lb / self.unit_states[section][state] if lb is not None else None
         ub = ub / self.unit_states[section][state] if ub is not None else None
         div_back, div_front = self._division_states(state, section)
-        self.bounds[div_front:div_back] = [(lb, ub)] * self.nodes[section]
+        self.bounds[div_front:div_back] = [(lb, ub)] * (self.nodes[section] + self._is_LG_or_LGR)
 
     def set_states_bounds_all_section(self, state, lb, ub):
         """set value to bounds of state at all sections
@@ -725,7 +715,7 @@ class Problem:
                 D = self.D
                 derivative = []
                 for j in range(self.number_of_states[i]):
-                    state_temp = self.states(j, i) / self.unit_states[i][j]
+                    state_temp = self.states(j, i, True) / self.unit_states[i][j]
                     derivative.append(D[i].dot(state_temp))
                 tix = self.time_start(i) / self.unit_time
                 tfx = self.time_final(i) / self.unit_time
@@ -741,7 +731,7 @@ class Problem:
                         self.states(state, knot) / self.unit_states[knot][state]
                     )
                     param_post = (
-                        self.states(state, knot + 1) / self.unit_states[knot][state]
+                        self.states(state, knot + 1, True) / self.unit_states[knot][state]
                     )
                     if self.knot_states_smooth[knot]:
                         result.append(param_prev[-1] - param_post[0])
@@ -866,7 +856,7 @@ class Problem:
                 D = self.D
                 derivative = []
                 for j in range(self.number_of_states[i]):
-                    state_temp = self.states(j, i) / self.unit_states[i][j]
+                    state_temp = self.states(j, i, True) / self.unit_states[i][j]
                     derivative.append(D[i].dot(state_temp))
                 tix = self.time_start(i) / self.unit_time
                 tfx = self.time_final(i) / self.unit_time
@@ -882,7 +872,7 @@ class Problem:
                         self.states(state, knot) / self.unit_states[knot][state]
                     )
                     param_post = (
-                        self.states(state, knot + 1) / self.unit_states[knot][state]
+                        self.states(state, knot + 1, True) / self.unit_states[knot][state]
                     )
                     if self.knot_states_smooth[knot]:
                         result.append(param_prev[-1] - param_post[0])
@@ -1029,24 +1019,27 @@ class Problem:
             number_of_controls
         ), "error: nodes length is not match controls length"
         self.nodes = nodes
+        self._is_LG_or_LGR = 1 if method in ["LG", "LGR"] else 0
         self.number_of_states = number_of_states
         self.number_of_controls = number_of_controls
         self.div = self._make_param_division(
             nodes, number_of_states, number_of_controls
         )
         self.number_of_section = len(self.nodes)
-        self.number_of_param = np.array(number_of_states) + np.array(number_of_controls)
         self.number_of_variables = (
-            sum(self.number_of_param * nodes) + self.number_of_section
+            sum(self.number_of_states * (np.array(nodes) + self._is_LG_or_LGR))
+            + sum(number_of_controls * np.array(nodes))
+            + self.number_of_section
         )
         self.tau = []
         self.w = []
         self.D = []
         self.time = []
         for index, node in enumerate(nodes):
-            self.tau.append(self._nodes_LGL(node))
-            self.w.append(self._weight_LGL(node))
-            self.D.append(self._differentiation_matrix_LGL(node))
+            tau, w, D = self.PS_params(node, method)
+            self.tau.append(tau)
+            self.w.append(w)
+            self.D.append(D)
             self.time.append(
                 (time_init[index + 1] - time_init[index]) / 2.0 * self.tau[index]
                 + (time_init[index + 1] + time_init[index]) / 2.0
